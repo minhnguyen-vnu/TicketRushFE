@@ -1,1 +1,56 @@
-/* You can add global styles to this file, and also import other style files */
+@import "tailwindcss";
+@source "../src/app/**/*.html";
+@source "../src/app/**/*.ts";
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: #fafafa;
+  color: #18181b;
+}
+
+/* ── Animations ── */
+.animate-in { animation-duration: 0.6s; animation-fill-mode: both; }
+
+@keyframes fade-in    { from { opacity: 0; transform: translateY(1rem); } to { opacity: 1; transform: translateY(0); } }
+@keyframes zoom-in    { from { transform: scale(0.95); opacity: 0; }      to { transform: scale(1); opacity: 1; } }
+@keyframes slide-in-left  { from { transform: translateX(-2rem); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slide-in-right { from { transform: translateX(2rem);  opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slide-in-bottom { from { transform: translateY(1rem); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes pulse-ring { 0% { transform: scale(.33); } 80%, 100% { opacity: 0; } }
+@keyframes pulse-dot  { 0% { transform: scale(.8); } 50% { transform: scale(1); } 100% { transform: scale(.8); } }
+
+.fade-in               { animation-name: fade-in; }
+.zoom-in               { animation-name: zoom-in; }
+.slide-in-from-left-8  { animation-name: slide-in-left; }
+.slide-in-from-right-8 { animation-name: slide-in-right; }
+.slide-in-from-bottom-4{ animation-name: slide-in-bottom; }
+
+/* ── Ticket torn-edge cutout ── */
+.ticket-cut { position: relative; }
+.ticket-cut::before,
+.ticket-cut::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background: #fafafa;
+  border-radius: 50%;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+.ticket-cut::before { left: -12px; }
+.ticket-cut::after  { right: -12px; }
+
+/* ── Misc utilities ── */
+.perspective-1000 { perspective: 1000px; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #e4e4e7; border-radius: 10px; }
+
+/* ── Pulse (queue room) ── */
+.pulse-container { position: relative; width: 24px; height: 24px; }
+.pulse-ring { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; background-color: #16a34a; animation: pulse-ring 1.25s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+.pulse-dot  { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; background-color: #16a34a; border: 4px solid white; }

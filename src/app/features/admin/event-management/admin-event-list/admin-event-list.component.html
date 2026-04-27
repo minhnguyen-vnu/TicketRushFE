@@ -1,0 +1,157 @@
+<div class="min-h-screen bg-[#fafafa] pt-24 pb-16 px-6 animate-in fade-in">
+  <div class="max-w-7xl mx-auto space-y-10">
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div>
+        <a routerLink="/admin" class="text-xs font-bold text-zinc-400 hover:text-zinc-600 flex items-center gap-1 mb-3">
+          <i class="fa-solid fa-chevron-left text-[10px]"></i> Admin
+        </a>
+        <h2 class="text-5xl font-black tracking-tighter text-zinc-900">Events</h2>
+        <p class="text-zinc-500 font-medium mt-1">Manage, publish and configure your events.</p>
+      </div>
+      <a routerLink="/admin/events/new"
+         class="flex items-center gap-2 bg-zinc-900 text-white px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-zinc-800 transition-all self-start">
+        <i class="fa-solid fa-plus"></i>
+        Create New Event
+      </a>
+    </div>
+
+    <!-- Error -->
+    @if (error()) {
+      <div class="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 text-sm text-red-700 font-medium">
+        {{ error() }}
+      </div>
+    }
+
+    <!-- Loading skeletons -->
+    @if (loading()) {
+      <div class="bg-white border border-zinc-200 rounded-[32px] overflow-hidden shadow-sm">
+        @for (n of [1,2,3,4]; track n) {
+          <div class="p-6 flex items-center gap-4 border-b border-zinc-100 last:border-0 animate-pulse">
+            <div class="w-14 h-14 rounded-2xl bg-zinc-100 shrink-0"></div>
+            <div class="flex-1 space-y-2">
+              <div class="h-4 bg-zinc-100 rounded-full w-1/3"></div>
+              <div class="h-3 bg-zinc-100 rounded-full w-1/2"></div>
+            </div>
+            <div class="h-6 w-20 bg-zinc-100 rounded-full"></div>
+            <div class="h-8 w-24 bg-zinc-100 rounded-xl"></div>
+          </div>
+        }
+      </div>
+
+    <!-- Empty state -->
+    } @else if (events().length === 0) {
+      <div class="bg-white border border-zinc-200 rounded-[32px] py-24 text-center space-y-4 shadow-sm">
+        <div class="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto">
+          <i class="fa-regular fa-calendar text-zinc-400 text-xl"></i>
+        </div>
+        <p class="font-bold text-zinc-900">No events yet</p>
+        <p class="text-sm text-zinc-500">Create your first event to get started.</p>
+        <a routerLink="/admin/events/new"
+           class="inline-flex items-center gap-2 mt-2 bg-zinc-900 text-white px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-zinc-800 transition-all">
+          <i class="fa-solid fa-plus"></i>
+          Create Event
+        </a>
+      </div>
+
+    <!-- Event list -->
+    } @else {
+      <div class="bg-white border border-zinc-200 rounded-[32px] overflow-hidden shadow-sm">
+        @for (event of events(); track event.id) {
+          <div class="p-6 flex flex-col sm:flex-row sm:items-center gap-4 border-b border-zinc-100 last:border-0 hover:bg-zinc-50/60 transition-colors group">
+
+            <!-- Banner thumbnail -->
+            <div class="w-14 h-14 rounded-2xl overflow-hidden bg-zinc-100 shrink-0">
+              <img [src]="event.bannerUrl || ('https://picsum.photos/seed/' + event.id + '/100/100')"
+                   [alt]="event.title"
+                   class="w-full h-full object-cover" />
+            </div>
+
+            <!-- Info -->
+            <div class="flex-1 min-w-0">
+              <h3 class="font-black text-zinc-900 truncate tracking-tight">{{ event.title }}</h3>
+              <div class="flex flex-wrap items-center gap-3 mt-1 text-xs font-medium text-zinc-500">
+                <span class="flex items-center gap-1">
+                  <i class="fa-regular fa-calendar text-zinc-400"></i>
+                  {{ formatDate(event.startTime) }}
+                </span>
+                <span class="flex items-center gap-1">
+                  <i class="fa-solid fa-location-dot text-zinc-400"></i>
+                  {{ event.venue }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Status badge -->
+            <div class="shrink-0">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest"
+                    [class]="event.status === 'PUBLISHED'
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : event.status === 'CANCELLED'
+                      ? 'bg-red-50 text-red-700'
+                      : 'bg-zinc-100 text-zinc-500'">
+                <span class="w-1.5 h-1.5 rounded-full"
+                      [class]="event.status === 'PUBLISHED' ? 'bg-emerald-500' : event.status === 'CANCELLED' ? 'bg-red-500' : 'bg-zinc-400'">
+                </span>
+                {{ event.status }}
+              </span>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-2 shrink-0">
+              <a [routerLink]="['/admin/events', event.id, 'edit']"
+                 class="flex items-center gap-1.5 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 rounded-xl text-xs font-bold text-zinc-700 transition-colors">
+                <i class="fa-solid fa-pen-to-square"></i>
+                Edit
+              </a>
+              <button (click)="onTogglePublish(event)"
+                      class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-colors"
+                      [class]="event.status === 'PUBLISHED'
+                        ? 'bg-amber-50 hover:bg-amber-100 text-amber-700'
+                        : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700'">
+                <i [class]="event.status === 'PUBLISHED' ? 'fa-solid fa-eye-slash' : 'fa-solid fa-globe'"></i>
+                {{ event.status === 'PUBLISHED' ? 'Unpublish' : 'Publish' }}
+              </button>
+              <button (click)="onDelete(event)"
+                      class="flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 rounded-xl text-xs font-bold text-red-700 transition-colors">
+                <i class="fa-regular fa-trash-can"></i>
+                Delete
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Confirm delete modal -->
+    @if (confirmDelete()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-6">
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" (click)="cancelDelete()"></div>
+        <div class="relative bg-white rounded-[32px] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in space-y-6">
+          <div class="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto">
+            <i class="fa-regular fa-trash-can text-red-600 text-xl"></i>
+          </div>
+          <div class="text-center">
+            <h3 class="text-xl font-black tracking-tight text-zinc-900">Delete event?</h3>
+            <p class="text-sm font-medium text-zinc-500 mt-2">This action cannot be undone. All tickets for this event will also be affected.</p>
+          </div>
+          <div class="flex gap-3">
+            <button (click)="cancelDelete()"
+                    class="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 rounded-2xl font-bold text-sm text-zinc-700 transition-colors">
+              Cancel
+            </button>
+            <button (click)="confirmDeleteAction()" [disabled]="deleting()"
+                    class="flex-1 py-3 bg-red-600 hover:bg-red-700 disabled:opacity-60 rounded-2xl font-bold text-sm text-white transition-colors flex items-center justify-center gap-2">
+              @if (deleting()) {
+                <span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              }
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+  </div>
+</div>

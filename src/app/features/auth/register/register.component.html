@@ -1,0 +1,151 @@
+<div class="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
+  <!-- Background blobs -->
+  <div class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-50 rounded-full blur-[120px] opacity-60 pointer-events-none"></div>
+  <div class="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-zinc-100 rounded-full blur-[120px] opacity-60 pointer-events-none"></div>
+
+  <div class="w-full max-w-md bg-white border border-zinc-200 rounded-[32px] p-8 md:p-12 shadow-2xl relative z-10 animate-in fade-in my-8">
+
+    <!-- Header -->
+    <div class="text-center mb-10">
+      <a routerLink="/" class="text-3xl font-bold tracking-tight hover:opacity-70 transition-opacity inline-block text-zinc-900">
+        TicketRush
+      </a>
+      <h2 class="text-4xl font-black tracking-tighter text-zinc-900 mt-6">Create account</h2>
+      <p class="text-zinc-500 font-medium mt-2">Join TicketRush to discover amazing events.</p>
+    </div>
+
+    <!-- Server error -->
+    @if (serverError()) {
+      <div class="mb-6 px-5 py-4 bg-red-50 border border-red-200 text-red-700 font-medium rounded-2xl text-sm">
+        {{ serverError() }}
+      </div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-5" novalidate>
+
+      <!-- Full Name -->
+      <div class="space-y-2">
+        <label class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Full Name</label>
+        <div class="flex items-center gap-4 px-5 py-4 bg-zinc-50 rounded-2xl border border-zinc-100 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all"
+             [class.border-red-400]="fullName.invalid && fullName.touched">
+          <i class="fa-regular fa-user text-zinc-400 w-5 text-center"></i>
+          <input type="text" formControlName="full_name" placeholder="Nguyen Van A"
+                 class="bg-transparent font-bold outline-none flex-1 w-full text-zinc-900 placeholder:text-zinc-400" />
+        </div>
+        @if (fullName.invalid && fullName.touched) {
+          <p class="text-xs text-red-500 font-medium pl-1">Full name is required.</p>
+        }
+      </div>
+
+      <!-- Email -->
+      <div class="space-y-2">
+        <label class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Email Address</label>
+        <div class="flex items-center gap-4 px-5 py-4 bg-zinc-50 rounded-2xl border border-zinc-100 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all"
+             [class.border-red-400]="email.invalid && email.touched">
+          <i class="fa-regular fa-envelope text-zinc-400 w-5 text-center"></i>
+          <input type="email" formControlName="email" placeholder="hello@example.com"
+                 class="bg-transparent font-bold outline-none flex-1 w-full text-zinc-900 placeholder:text-zinc-400" />
+        </div>
+        @if (email.invalid && email.touched) {
+          <p class="text-xs text-red-500 font-medium pl-1">
+            @if (email.hasError('required')) { Email is required. }
+            @else if (email.hasError('email')) { Please enter a valid email. }
+            @else if (email.hasError('emailTaken')) { This email is already registered. }
+          </p>
+        }
+      </div>
+
+      <!-- Password -->
+      <div class="space-y-2">
+        <label class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Password</label>
+        <div class="flex items-center gap-4 px-5 py-4 bg-zinc-50 rounded-2xl border border-zinc-100 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all"
+             [class.border-red-400]="password.invalid && password.touched">
+          <i class="fa-solid fa-lock text-zinc-400 w-5 text-center"></i>
+          <input [type]="showPassword() ? 'text' : 'password'" formControlName="password" placeholder="Min. 8 characters"
+                 class="bg-transparent font-bold outline-none flex-1 w-full text-zinc-900 placeholder:text-zinc-400" />
+          <button type="button" (click)="showPassword.update(v => !v)" class="text-zinc-400 hover:text-zinc-600 transition-colors">
+            <i [class]="showPassword() ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'" class="w-5 text-center"></i>
+          </button>
+        </div>
+        @if (password.invalid && password.touched) {
+          <p class="text-xs text-red-500 font-medium pl-1">
+            @if (password.hasError('required')) { Password is required. }
+            @else { Password must be at least 8 characters. }
+          </p>
+        }
+      </div>
+
+      <!-- Confirm Password -->
+      <div class="space-y-2">
+        <label class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Confirm Password</label>
+        <div class="flex items-center gap-4 px-5 py-4 bg-zinc-50 rounded-2xl border border-zinc-100 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all"
+             [class.border-red-400]="(confirmPassword.touched && confirmPassword.hasError('required')) || (form.hasError('passwordMismatch') && confirmPassword.touched)">
+          <i class="fa-solid fa-lock text-zinc-400 w-5 text-center"></i>
+          <input type="password" formControlName="confirmPassword" placeholder="••••••••"
+                 class="bg-transparent font-bold outline-none flex-1 w-full text-zinc-900 placeholder:text-zinc-400" />
+        </div>
+        @if (confirmPassword.touched && confirmPassword.hasError('required')) {
+          <p class="text-xs text-red-500 font-medium pl-1">Please confirm your password.</p>
+        } @else if (form.hasError('passwordMismatch') && confirmPassword.touched) {
+          <p class="text-xs text-red-500 font-medium pl-1">Passwords do not match.</p>
+        }
+      </div>
+
+      <!-- Date of Birth -->
+      <div class="space-y-2">
+        <label class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Date of Birth</label>
+        <div class="flex items-center gap-4 px-5 py-4 bg-zinc-50 rounded-2xl border border-zinc-100 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all"
+             [class.border-red-400]="dateOfBirth.invalid && dateOfBirth.touched">
+          <i class="fa-regular fa-calendar text-zinc-400 w-5 text-center"></i>
+          <input type="date" formControlName="date_of_birth"
+                 [max]="today"
+                 class="bg-transparent font-bold outline-none flex-1 w-full text-zinc-900" />
+        </div>
+        @if (dateOfBirth.invalid && dateOfBirth.touched) {
+          <p class="text-xs text-red-500 font-medium pl-1">
+            @if (dateOfBirth.hasError('required')) { Date of birth is required. }
+            @else { Date of birth must be in the past. }
+          </p>
+        }
+      </div>
+
+      <!-- Gender -->
+      <div class="space-y-2">
+        <label class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Gender</label>
+        <div class="flex items-center gap-4 px-5 py-4 bg-zinc-50 rounded-2xl border border-zinc-100 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all"
+             [class.border-red-400]="gender.invalid && gender.touched">
+          <i class="fa-solid fa-venus-mars text-zinc-400 w-5 text-center"></i>
+          <select formControlName="gender"
+                  class="bg-transparent font-bold outline-none flex-1 w-full text-zinc-900 appearance-none cursor-pointer">
+            <option value="" disabled>Select gender</option>
+            <option value="MALE">Male</option>
+            <option value="FEMALE">Female</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+        @if (gender.invalid && gender.touched) {
+          <p class="text-xs text-red-500 font-medium pl-1">Please select a gender.</p>
+        }
+      </div>
+
+      <!-- Submit -->
+      <button type="submit" [disabled]="loading()"
+              class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-2 group mt-6 disabled:opacity-60 disabled:cursor-not-allowed">
+        @if (loading()) {
+          <span class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+          Creating account…
+        } @else {
+          Create Account <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+        }
+      </button>
+    </form>
+
+    <!-- Footer -->
+    <div class="mt-8 pt-8 border-t border-zinc-100 text-center">
+      <p class="text-sm font-medium text-zinc-500">
+        Already have an account?
+        <a routerLink="/login" class="font-bold text-indigo-600 hover:text-indigo-700 ml-1">Sign in</a>
+      </p>
+    </div>
+  </div>
+</div>

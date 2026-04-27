@@ -16,6 +16,7 @@ yarn-error.log
 .claude/*
 docs/*
 references/*
+.gemini/*
 .project
 .classpath
 .c9/

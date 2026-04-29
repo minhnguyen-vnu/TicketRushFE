@@ -72,7 +72,7 @@
           </div>
 
           <!-- Seat map -->
-          @if (event()!.seatingType === 'ASSIGNED' && event()!.ticketType === 'PAID') {
+          @if (event()!.seatingType === 'ASSIGNED') {
             <div>
               <h2 class="text-2xl font-black tracking-tighter text-zinc-900 mb-6">Select Your Seats</h2>
               <app-seat-map [eventId]="event()!.id" />

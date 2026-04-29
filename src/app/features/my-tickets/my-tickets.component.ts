@@ -77,7 +77,7 @@ interface EventGroup {
                           </div>
                           <div>
                             <p class="text-[10px] font-black uppercase text-zinc-400">Seat</p>
-                            <p class="font-bold text-zinc-900">{{ ticket.seat.label }}</p>
+                            <p class="font-bold text-zinc-900">{{ ticket.seat?.label ?? 'General admission' }}</p>
                           </div>
                           <div>
                             <p class="text-[10px] font-black uppercase text-zinc-400">Zone</p>

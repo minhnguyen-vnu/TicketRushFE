@@ -33,7 +33,7 @@
         <div class="absolute top-8 left-20 flex gap-2">
           @for (cat of event()!.categories.slice(0, 2); track cat) {
             <span class="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black text-white uppercase tracking-widest border border-white/20">
-              {{ cat }}
+              {{ cat.name }}
             </span>
           }
         </div>
@@ -62,21 +62,22 @@
             </div>
           }
 
-          @if (event()!.tags.length) {
-            <div class="flex flex-wrap gap-2">
-              @for (tag of event()!.tags; track tag) {
-                <span class="px-3 py-1 bg-white border border-zinc-100 rounded-full text-xs font-bold text-zinc-500 shadow-sm">
-                  {{ tag }}
-                </span>
-              }
-            </div>
-          }
+          <div class="flex flex-wrap gap-2">
+            <span class="px-3 py-1 bg-white border border-zinc-100 rounded-full text-xs font-bold text-zinc-500 shadow-sm">
+              {{ event()!.ticketType === 'FREE' ? 'Free entry' : 'Paid ticket' }}
+            </span>
+            <span class="px-3 py-1 bg-white border border-zinc-100 rounded-full text-xs font-bold text-zinc-500 shadow-sm">
+              {{ event()!.seatingType === 'GENERAL_ADMISSION' ? 'General admission' : 'Assigned seating' }}
+            </span>
+          </div>
 
           <!-- Seat map -->
-          <div>
-            <h2 class="text-2xl font-black tracking-tighter text-zinc-900 mb-6">Select Your Seats</h2>
-            <app-seat-map [eventId]="event()!.id" />
-          </div>
+          @if (event()!.seatingType === 'ASSIGNED' && event()!.ticketType === 'PAID') {
+            <div>
+              <h2 class="text-2xl font-black tracking-tighter text-zinc-900 mb-6">Select Your Seats</h2>
+              <app-seat-map [eventId]="event()!.id" />
+            </div>
+          }
         </div>
 
         <!-- Right — sticky info card -->
@@ -150,7 +151,6 @@
         </p>
         <button
           (click)="onCheckout()"
-          [disabled]="selectedCount() === 0"
           class="bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black px-8 py-3.5 rounded-2xl transition-all shadow-xl shadow-zinc-200 flex items-center gap-2 text-sm"
         >
           Proceed to Checkout

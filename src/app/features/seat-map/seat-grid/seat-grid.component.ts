@@ -8,6 +8,11 @@ import { SeatCellComponent } from '../seat-cell/seat-cell.component';
   imports: [SeatCellComponent],
   template: `
     <div class="overflow-x-auto">
+      @if (!isAssignedZone()) {
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-6 text-center text-sm font-medium text-zinc-300">
+          General admission · Capacity {{ zone().capacity }}
+        </div>
+      } @else {
       <div class="inline-block min-w-max">
         <!-- Column headers -->
         <div class="flex mb-1 pl-7">
@@ -33,6 +38,7 @@ import { SeatCellComponent } from '../seat-cell/seat-cell.component';
           </div>
         }
       </div>
+      }
     </div>
   `,
 })
@@ -43,12 +49,14 @@ export class SeatGridComponent {
   readonly holdRequest = output<Seat>();
   readonly releaseRequest = output<Seat>();
 
+  protected readonly isAssignedZone = computed(() => this.zone().rows != null && this.zone().cols != null);
+
   protected readonly rowIndices = computed(() =>
-    Array.from({ length: this.zone().rows }, (_, i) => i),
+    Array.from({ length: this.zone().rows ?? 0 }, (_, i) => i),
   );
 
   protected readonly colIndices = computed(() =>
-    Array.from({ length: this.zone().cols }, (_, i) => i),
+    Array.from({ length: this.zone().cols ?? 0 }, (_, i) => i),
   );
 
   protected seatsInRow(rowIndex: number): Seat[] {

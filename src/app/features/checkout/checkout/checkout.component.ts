@@ -73,10 +73,10 @@ interface ZoneRow {
                 </div>
 
                 <button
-                  (click)="step.set(2)"
+                  (click)="isFreeEvent() ? onConfirm() : step.set(2)"
                   class="w-full py-5 bg-zinc-900 text-white rounded-2xl font-black text-lg hover:bg-zinc-800 transition-all shadow-xl shadow-zinc-200"
                 >
-                  Continue to payment
+                  {{ isFreeEvent() ? 'Confirm free ticket' : 'Continue to payment' }}
                 </button>
               </div>
 
@@ -198,7 +198,7 @@ export class CheckoutComponent implements OnInit {
     const map = new Map<string, ZoneRow>();
     for (const seat of this.seats()) {
       const zone = this.zoneMap().get(seat.zoneId) ?? {
-        id: seat.zoneId, eventId: '', name: 'Zone', rows: 0, cols: 0,
+        id: seat.zoneId, eventId: '', name: 'Zone', rows: null, cols: null,
         price: 0, capacity: 0, color: '#6366f1', seats: [],
       };
       const existing = map.get(seat.zoneId);
@@ -214,6 +214,8 @@ export class CheckoutComponent implements OnInit {
   protected readonly total = computed(() =>
     this.zoneRows().reduce((sum, r) => sum + r.zone.price * r.seats.length, 0),
   );
+
+  protected readonly isFreeEvent = computed(() => this.event()?.ticketType === 'FREE');
 
   ngOnInit(): void {
     this.seatService.selectedSeats$

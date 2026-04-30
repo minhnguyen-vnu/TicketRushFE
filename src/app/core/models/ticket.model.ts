@@ -11,7 +11,7 @@ export interface TicketDetailResponse {
     rowIndex: number;
     colIndex: number;
     status: string;
-  };
+  } | null;
   zone: {
     id: string;
     name: string;

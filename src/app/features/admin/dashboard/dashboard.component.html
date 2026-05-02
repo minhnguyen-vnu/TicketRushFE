@@ -107,36 +107,22 @@
       <!-- Bottom panels -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
 
-        <!-- Recent sales feed -->
+        <!-- Demographics shortcut -->
         <div class="space-y-6">
-          <h3 class="text-2xl font-black tracking-tight">Recent Sales</h3>
-          <div class="bg-white border border-zinc-200 shadow-sm rounded-[32px] overflow-hidden">
-
-            @if (recentSales().length === 0) {
-              <div class="py-16 text-center">
-                <p class="text-sm font-bold text-zinc-500">No sales yet</p>
+          <h3 class="text-2xl font-black tracking-tight">Audience</h3>
+          <a [routerLink]="['/admin/events', selectedEventId(), 'demographics']"
+             class="block bg-white border border-zinc-200 shadow-sm rounded-[32px] p-8 hover:border-indigo-300 transition-all">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center">
+                <i class="fa-solid fa-chart-pie text-indigo-600"></i>
               </div>
-            } @else {
-              @for (sale of recentSales(); track sale.ticketId) {
-                <div class="p-6 flex items-center justify-between border-b border-zinc-100 last:border-0 hover:bg-zinc-50 transition-all">
-                  <div class="flex items-center gap-4">
-                    <div class="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center shrink-0">
-                      <i class="fa-solid fa-user text-zinc-400 text-sm"></i>
-                    </div>
-                    <div>
-                      <p class="font-bold text-zinc-900 text-sm">{{ sale.buyerName }}</p>
-                      <p class="text-xs text-zinc-500">{{ sale.seatLabel }} · {{ sale.zoneName }}</p>
-                    </div>
-                  </div>
-                  <div class="text-right">
-                    <p class="font-black text-zinc-900 text-sm">{{ sale.price | currencyVnd }}</p>
-                    <p class="text-[10px] text-zinc-400">{{ sale.purchasedAt | date:'HH:mm' }}</p>
-                  </div>
-                </div>
-              }
-            }
-
-          </div>
+              <div class="flex-1">
+                <p class="font-black text-zinc-900">View demographics</p>
+                <p class="text-xs text-zinc-500 font-medium mt-1">Age & gender breakdown of buyers</p>
+              </div>
+              <i class="fa-solid fa-chevron-right text-zinc-400"></i>
+            </div>
+          </a>
         </div>
 
         <!-- System health -->

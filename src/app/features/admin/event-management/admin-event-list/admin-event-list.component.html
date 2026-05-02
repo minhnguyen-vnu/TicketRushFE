@@ -1,22 +1,25 @@
+
+<!--Header section-->
+<div class="max-w-7xl mx-auto">
+
+  <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+   <div>
+      <a routerLink="/admin" class="text-xs font-bold text-zinc-400 hover:text-zinc-600 flex items-center gap-1 mb-3">
+        <i class="fa-solid fa-chevron-left text-[10px]"></i> Admin
+      </a>
+      <h2 class="text-5xl font-black tracking-tighter text-zinc-900">Events</h2>
+      <p class="text-zinc-500 font-medium mt-1">Manage, publish and configure your events.</p>
+    </div>
+    <a routerLink="/admin/events/new"
+       class="flex items-center gap-2 bg-zinc-900 text-white px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-zinc-800 transition-all self-start">
+      <i class="fa-solid fa-plus"></i>
+      Create New Event
+    </a>
+  </div>
+</div>
+
 <div class="min-h-screen bg-[#fafafa] pt-24 pb-16 px-6 animate-in fade-in">
   <div class="max-w-7xl mx-auto space-y-10">
-
-    <!-- Header -->
-    <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
-      <div>
-        <a routerLink="/admin" class="text-xs font-bold text-zinc-400 hover:text-zinc-600 flex items-center gap-1 mb-3">
-          <i class="fa-solid fa-chevron-left text-[10px]"></i> Admin
-        </a>
-        <h2 class="text-5xl font-black tracking-tighter text-zinc-900">Events</h2>
-        <p class="text-zinc-500 font-medium mt-1">Manage, publish and configure your events.</p>
-      </div>
-      <a routerLink="/admin/events/new"
-         class="flex items-center gap-2 bg-zinc-900 text-white px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-zinc-800 transition-all self-start">
-        <i class="fa-solid fa-plus"></i>
-        Create New Event
-      </a>
-    </div>
-
     <!-- Error -->
     @if (error()) {
       <div class="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 text-sm text-red-700 font-medium">
@@ -101,6 +104,8 @@
             <!-- Actions -->
             <div class="flex items-center gap-2 shrink-0">
               <a [routerLink]="['/admin/events', event.id, 'edit']"
+                 [queryParams]="{editMode: 1}"
+                 (click)="onEventSelected(event)"
                  class="flex items-center gap-1.5 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 rounded-xl text-xs font-bold text-zinc-700 transition-colors">
                 <i class="fa-solid fa-pen-to-square"></i>
                 Edit

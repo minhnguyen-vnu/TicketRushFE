@@ -12,6 +12,7 @@ import { HoldTimerComponent } from '../hold-timer/hold-timer.component';
 import { SeatGridComponent } from '../seat-grid/seat-grid.component';
 import { SeatLegendComponent } from '../seat-legend/seat-legend.component';
 import { SeatService } from '../seat.service';
+import { computeStandLayout } from '../../../shared/utils/stand-layout';
 
 @Component({
   selector: 'app-seat-map',
@@ -33,9 +34,38 @@ import { SeatService } from '../seat.service';
         <app-hold-timer (expired)="onHoldExpired()" />
       }
       <app-seat-legend [zones]="zones()" />
+
+      <!-- Stand overview -->
+      @if (zones().length > 0) {
+        <div class="bg-zinc-900 rounded-xl p-4 border border-zinc-800 mt-5">
+          <p class="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3 text-center">Stand Overview</p>
+          <div class="bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase tracking-widest text-center py-2 rounded-lg mb-3">
+            Stage
+          </div>
+          <div class="relative w-full bg-zinc-950 rounded-lg overflow-hidden"
+               [style.aspect-ratio]="standLayout().standCols + ' / ' + (standLayout().standRows || 1)">
+            @for (placed of standLayout().zones; track placed.zone.id) {
+              <button type="button"
+                      (click)="scrollToZone(placed.zone.id)"
+                      class="absolute flex items-center justify-center text-[11px] font-bold text-white border border-black/30 rounded-sm overflow-hidden hover:ring-2 hover:ring-white/60 transition-all"
+                      [style.left.%]="(placed.startCol / standLayout().standCols) * 100"
+                      [style.top.%]="(placed.startRow / (standLayout().standRows || 1)) * 100"
+                      [style.width.%]="(placed.cols / standLayout().standCols) * 100"
+                      [style.height.%]="(placed.rows / (standLayout().standRows || 1)) * 100"
+                      [style.background-color]="placed.zone.color"
+                      [title]="placed.zone.name + ' · ' + (placed.zone.price | currencyVnd)">
+                <span class="truncate px-1">{{ placed.zone.name }}</span>
+              </button>
+            }
+          </div>
+          <p class="text-[10px] text-zinc-500 text-center mt-3">Click a zone to pick seats below.</p>
+        </div>
+      }
+
       <div class="flex flex-wrap gap-6 mt-5">
         @for (zone of zones(); track zone.id) {
-          <div class="bg-zinc-900 rounded-xl p-4 border border-zinc-800">
+          <div [id]="'zone-' + zone.id"
+               class="bg-zinc-900 rounded-xl p-4 border border-zinc-800 scroll-mt-24">
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-2">
                 <div class="w-3 h-3 rounded-sm" [style.background-color]="zone.color"></div>
@@ -70,6 +100,17 @@ export class SeatMapComponent implements OnInit {
 
   protected readonly currentUserId = computed(() => this.authService.getCurrentUser()?.id ?? null);
   protected readonly hasSelection = signal(false);
+
+  protected readonly standLayout = computed(() => {
+    const zs = this.zones();
+    const totalCols = zs.reduce((sum, z) => sum + Math.max(1, z.cols ?? 1), 0);
+    const standCols = Math.max(10, Math.min(60, totalCols));
+    return computeStandLayout(zs, standCols);
+  });
+
+  protected scrollToZone(zoneId: string): void {
+    document.getElementById(`zone-${zoneId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   ngOnInit(): void {
     this.seatService.selectedSeats$

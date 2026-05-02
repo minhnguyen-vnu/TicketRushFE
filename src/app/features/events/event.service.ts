@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import {BehaviorSubject, Observable} from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { Event, EventListItem } from '../../core/models/event.model';
 import { SeatMapResponse } from '../../core/models/seat-map.model';
@@ -7,6 +7,8 @@ import { SeatMapResponse } from '../../core/models/seat-map.model';
 @Injectable({ providedIn: 'root' })
 export class EventService {
   private readonly api = inject(ApiService);
+  private readonly selectedEvent = new BehaviorSubject<EventListItem | null>(null);
+  selectedEvent$ = this.selectedEvent.asObservable();
 
   getEvents(params?: {
     search?: string;
@@ -19,6 +21,18 @@ export class EventService {
     if (params?.date_to) qp.set('date_to', params.date_to);
     const qs = qp.toString();
     return this.api.get<EventListItem[]>(`/api/events${qs ? `?${qs}` : ''}`);
+  }
+
+  setSelectedEvent(selectedEvent: EventListItem) {
+    this.selectedEvent.next(selectedEvent);
+  }
+
+  getSelectedEvent(): EventListItem | null {
+    return this.selectedEvent.getValue();
+  }
+
+  resetSelectedEvent(): void {
+    this.selectedEvent.next(null);
   }
 
   getEventById(id: string): Observable<Event> {

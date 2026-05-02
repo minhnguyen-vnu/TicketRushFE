@@ -24,7 +24,7 @@ export const adminRoutes: Routes = [
       import('./event-management/event-form/event-form.component').then(m => m.EventFormComponent),
   },
   {
-    path: 'admin/dashboard',
+    path: 'dashboard',
     loadComponent: () =>
       import('./dashboard/dashboard.component').then(m => m.DashboardComponent),
   },

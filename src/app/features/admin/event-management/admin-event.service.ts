@@ -2,6 +2,33 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { EventListItem, Event } from '../../../core/models/event.model';
+import { SeatZone } from '../../../core/models/seat-zone.model';
+
+export interface CreateZonePayload {
+  name: string;
+  rows: number;
+  cols: number;
+  price: number;
+  color: string;
+}
+
+export interface CreateEventPayload {
+  title: string;
+  slug?: string;
+  description: string;
+  short_description: string;
+  start_time: string;
+  end_time: string;
+  venue: string;
+  banner_url: string;
+  is_private: boolean;
+  theme: string;
+  status: string;
+  categories: string[];
+  zones: CreateZonePayload[];
+  seating_type: 'ASSIGNED' | 'GENERAL_ADMISSION';
+  ticket_type: 'FREE' | 'PAID';
+}
 
 @Injectable({ providedIn: 'root' })
 export class AdminEventService {
@@ -15,11 +42,23 @@ export class AdminEventService {
     return this.api.get<Event>(`/api/admin/events/${eventId}`);
   }
 
-  updateEvent(eventId: string, data: Partial<{ status: 'PUBLISHED' | 'DRAFT' }>): Observable<void> {
-    return this.api.put<void>(`/api/admin/events/${eventId}`, data);
+  createEvent(payload: CreateEventPayload): Observable<Event> {
+    return this.api.post<Event>(`/api/admin/events`, payload);
   }
 
-  deleteEvent(eventId: string): Observable<void> {
-    return this.api.delete<void>(`/api/admin/events/${eventId}`);
+  updateEvent(eventId: string, data: Partial<CreateEventPayload>): Observable<Event> {
+    return this.api.put<Event>(`/api/admin/events/${eventId}`, data);
+  }
+
+  deleteEvent(eventId: string): Observable<{ deleted: boolean }> {
+    return this.api.delete<{ deleted: boolean }>(`/api/admin/events/${eventId}`);
+  }
+
+  getZones(eventId: string): Observable<SeatZone[]> {
+    return this.api.get<SeatZone[]>(`/api/admin/events/${eventId}/zones`);
+  }
+
+  createZone(eventId: string, payload: CreateZonePayload): Observable<SeatZone> {
+    return this.api.post<SeatZone>(`/api/admin/events/${eventId}/zones`, payload);
   }
 }

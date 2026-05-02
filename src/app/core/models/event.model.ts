@@ -1,6 +1,11 @@
 import { SeatZone } from './seat-zone.model';
 
-export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'CANCELLED';
+export const EventStatus = {
+  DRAFT: 'DRAFT',
+  PUBLISHED: 'PUBLISHED',
+  CANCELLED: 'CANCELLED',
+} as const;
+export type EventStatus = typeof EventStatus[keyof typeof EventStatus];
 export type TicketType = 'FREE' | 'PAID';
 export type SeatingType = 'ASSIGNED' | 'GENERAL_ADMISSION';
 
@@ -42,8 +47,13 @@ export interface EventListItem {
   banner_url: string;
   lowest_price: number;
   status: EventStatus;
-  ticketType: TicketType;
-  seatingType: SeatingType;
-  maxCapacity: number | null;
+  ticket_type: TicketType;
+  seating_type: SeatingType;
+  max_capacity: number | null;
   categories: EventCategory[];
+  description: string;
+  short_description: string;
+  embedding: string;
+  is_private: boolean;
+  theme: string;
 }

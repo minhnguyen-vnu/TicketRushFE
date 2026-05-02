@@ -1,7 +1,109 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
+import { QueueStatus } from '../../../core/models/queue.model';
+import { ToastService } from '../../../core/services/toast.service';
+import { QueueService } from '../queue.service';
 
 @Component({
   selector: 'app-queue-room',
-  template: '<div class="p-8 text-center">Queue Room — coming soon</div>',
+  templateUrl: './queue-room.component.html',
 })
-export class QueueRoomComponent {}
+export class QueueRoomComponent implements OnInit, OnDestroy {
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly queueService = inject(QueueService);
+  private readonly toast = inject(ToastService);
+
+  readonly loading = signal(true);
+  readonly status = signal<QueueStatus | null>(null);
+  readonly error = signal('');
+  readonly accessCountdown = signal(0);
+
+  readonly position = computed(() => this.status()?.position ?? 0);
+  readonly totalUsers = computed(() => this.status()?.total_users ?? 0);
+  readonly progressPercent = computed(() => {
+    const total = this.totalUsers();
+    const pos = this.position();
+    if (total <= 0) return 0;
+    const ahead = total - pos;
+    return Math.min(100, Math.max(0, Math.round((ahead / total) * 100)));
+  });
+
+  private eventId = '';
+  private pollSub: Subscription | null = null;
+  private countdownTimer: ReturnType<typeof setInterval> | null = null;
+
+  ngOnInit(): void {
+    this.eventId = this.route.snapshot.queryParamMap.get('eventId') ?? '';
+    if (!this.eventId) {
+      this.error.set('Missing event id.');
+      this.loading.set(false);
+      return;
+    }
+
+    this.queueService.joinQueue(this.eventId).subscribe({
+      next: result => {
+        this.applyStatus(result);
+        this.loading.set(false);
+        if (!result.has_access) this.startPolling();
+      },
+      error: () => {
+        this.error.set('Unable to join the queue. Please try again.');
+        this.loading.set(false);
+      },
+    });
+  }
+
+  private startPolling(): void {
+    this.pollSub?.unsubscribe();
+    this.pollSub = this.queueService.pollQueueStatus(this.eventId, 3000).subscribe({
+      next: result => this.applyStatus(result),
+      error: () => this.toast.error('Lost connection to the queue.'),
+    });
+  }
+
+  private applyStatus(result: QueueStatus): void {
+    this.status.set(result);
+    if (result.has_access) {
+      this.pollSub?.unsubscribe();
+      this.pollSub = null;
+      if (result.access_expires_in != null) {
+        this.startCountdown(result.access_expires_in);
+      }
+      this.toast.success('Access granted! Redirecting…');
+      setTimeout(() => this.router.navigate(['/events', this.eventId]), 1200);
+    }
+  }
+
+  private startCountdown(seconds: number): void {
+    this.accessCountdown.set(seconds);
+    if (this.countdownTimer) clearInterval(this.countdownTimer);
+    this.countdownTimer = setInterval(() => {
+      const next = this.accessCountdown() - 1;
+      this.accessCountdown.set(Math.max(0, next));
+      if (next <= 0 && this.countdownTimer) {
+        clearInterval(this.countdownTimer);
+        this.countdownTimer = null;
+      }
+    }, 1000);
+  }
+
+  formatCountdown(): string {
+    const s = this.accessCountdown();
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${r.toString().padStart(2, '0')}`;
+  }
+
+  retry(): void {
+    this.error.set('');
+    this.loading.set(true);
+    this.ngOnInit();
+  }
+
+  ngOnDestroy(): void {
+    this.pollSub?.unsubscribe();
+    if (this.countdownTimer) clearInterval(this.countdownTimer);
+  }
+}

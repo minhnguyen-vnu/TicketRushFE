@@ -1,0 +1,108 @@
+<div class="min-h-screen bg-[#fafafa] pt-24 pb-12 px-6 animate-in fade-in">
+  <div class="max-w-7xl mx-auto space-y-12">
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div>
+        <a routerLink="/admin" class="text-xs font-bold text-zinc-400 hover:text-zinc-600 flex items-center gap-1 mb-3">
+          <i class="fa-solid fa-chevron-left text-[10px]"></i> Admin
+        </a>
+        <h2 class="text-5xl font-black tracking-tighter text-zinc-900">Demographics</h2>
+        <p class="text-zinc-500 font-medium mt-1">Understand who is buying your tickets.</p>
+      </div>
+      <select (change)="onEventChange($any($event.target).value)"
+              class="px-5 py-3 bg-white border border-zinc-200 rounded-2xl font-bold text-sm text-zinc-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+        <option value="">Select event…</option>
+        @for (event of events(); track event.id) {
+          <option [value]="event.id" [selected]="selectedEventId() === event.id">{{ event.title }}</option>
+        }
+      </select>
+    </div>
+
+    @if (loading()) {
+      <div class="bg-white border border-zinc-200 rounded-[32px] p-16 text-center">
+        <div class="w-10 h-10 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
+        <p class="text-sm text-zinc-500 font-medium mt-4">Loading demographics…</p>
+      </div>
+    } @else if (!selectedEventId()) {
+      <div class="bg-white border border-zinc-200 rounded-[32px] py-24 text-center space-y-3 shadow-sm">
+        <div class="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto">
+          <i class="fa-solid fa-chart-pie text-zinc-400 text-xl"></i>
+        </div>
+        <p class="font-bold text-zinc-900">Select an event to view demographics</p>
+      </div>
+    } @else if (!data() || totalBuyers() === 0) {
+      <div class="bg-white border border-zinc-200 rounded-[32px] py-24 text-center space-y-3 shadow-sm">
+        <div class="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto">
+          <i class="fa-solid fa-users text-zinc-400 text-xl"></i>
+        </div>
+        <p class="font-bold text-zinc-900">No buyer data yet</p>
+        <p class="text-sm text-zinc-500">Demographics will appear once tickets are sold.</p>
+      </div>
+    } @else {
+      <!-- Summary -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white border border-zinc-200 shadow-sm rounded-[32px] p-8">
+          <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Total Buyers</p>
+          <p class="text-4xl font-black text-zinc-900 mt-2">{{ totalBuyers() }}</p>
+        </div>
+        <div class="bg-white border border-zinc-200 shadow-sm rounded-[32px] p-8">
+          <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Age Buckets Tracked</p>
+          <p class="text-4xl font-black text-zinc-900 mt-2">{{ ageBars().length }}</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <!-- Age distribution -->
+        <div class="space-y-6">
+          <h3 class="text-2xl font-black tracking-tight">Age distribution</h3>
+          <div class="bg-white border border-zinc-200 shadow-sm rounded-[32px] p-8 space-y-5">
+            @for (bar of ageBars(); track bar.label) {
+              <div>
+                <div class="flex justify-between items-center text-sm">
+                  <span class="font-bold text-zinc-900">{{ bar.label }}</span>
+                  <span class="font-medium text-zinc-500">{{ bar.count }} ({{ bar.percent }}%)</span>
+                </div>
+                <div class="h-3 mt-2 bg-zinc-100 rounded-full overflow-hidden">
+                  <div class="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                       [style.width.%]="bar.percent"></div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Gender distribution -->
+        <div class="space-y-6">
+          <h3 class="text-2xl font-black tracking-tight">Gender distribution</h3>
+          <div class="bg-white border border-zinc-200 shadow-sm rounded-[32px] p-8 flex flex-col items-center gap-8">
+            <!-- Donut chart via conic-gradient -->
+            <div class="relative w-48 h-48">
+              <div class="w-full h-full rounded-full"
+                   [style.background]="'conic-gradient(' + buildConicGradient() + ')'"></div>
+              <div class="absolute inset-6 bg-white rounded-full flex items-center justify-center">
+                <div class="text-center">
+                  <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Total</p>
+                  <p class="text-2xl font-black text-zinc-900">{{ totalBuyers() }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+              @for (slice of genderSlices(); track slice.label) {
+                <div class="flex items-center gap-3">
+                  <span class="w-3 h-3 rounded-full" [style.background-color]="slice.color"></span>
+                  <div>
+                    <p class="text-sm font-bold text-zinc-900">{{ slice.label }}</p>
+                    <p class="text-xs text-zinc-500 font-medium">{{ slice.count }} · {{ slice.percent }}%</p>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+  </div>
+</div>

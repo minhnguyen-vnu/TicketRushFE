@@ -1,0 +1,81 @@
+<div class="min-h-screen bg-[#fafafa] flex items-center justify-center px-6 py-24 animate-in fade-in">
+  <div class="max-w-xl w-full">
+
+    @if (loading()) {
+      <div class="bg-white border border-zinc-200 rounded-[32px] p-12 text-center shadow-sm space-y-6">
+        <div class="w-12 h-12 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
+        <p class="text-sm font-bold text-zinc-700">Joining the queue…</p>
+      </div>
+    } @else if (error()) {
+      <div class="bg-white border border-red-200 rounded-[32px] p-12 text-center shadow-sm space-y-6">
+        <div class="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto">
+          <i class="fa-solid fa-triangle-exclamation text-red-600 text-xl"></i>
+        </div>
+        <div>
+          <p class="font-black text-zinc-900 text-lg">Couldn't join the queue</p>
+          <p class="text-sm text-zinc-500 font-medium mt-2">{{ error() }}</p>
+        </div>
+        <button (click)="retry()"
+                class="px-6 py-3 bg-zinc-900 text-white font-bold text-sm rounded-full hover:bg-zinc-800 transition-all">
+          Try again
+        </button>
+      </div>
+    } @else if (status()?.has_access) {
+      <div class="bg-white border border-emerald-200 rounded-[32px] p-12 text-center shadow-sm space-y-6">
+        <div class="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto">
+          <i class="fa-regular fa-circle-check text-emerald-600 text-2xl"></i>
+        </div>
+        <div>
+          <p class="font-black text-zinc-900 text-2xl tracking-tight">You're in!</p>
+          <p class="text-sm text-zinc-500 font-medium mt-2">Redirecting to the event…</p>
+        </div>
+        @if (accessCountdown() > 0) {
+          <div class="bg-zinc-50 border border-zinc-200 rounded-2xl px-5 py-3 inline-flex items-center gap-2">
+            <i class="fa-regular fa-clock text-zinc-500 text-sm"></i>
+            <span class="text-sm font-bold text-zinc-700">Access expires in {{ formatCountdown() }}</span>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="bg-white border border-zinc-200 rounded-[32px] p-12 text-center shadow-sm space-y-8">
+
+        <div class="space-y-2">
+          <p class="text-[10px] font-black uppercase tracking-widest text-indigo-500">Virtual Queue</p>
+          <h2 class="text-3xl font-black tracking-tighter text-zinc-900">You're in line</h2>
+          <p class="text-sm text-zinc-500 font-medium">Hang tight — we'll let you in as soon as it's your turn.</p>
+        </div>
+
+        <!-- Position display -->
+        <div class="bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100 rounded-[28px] p-10 space-y-4">
+          <p class="text-[10px] font-black uppercase tracking-widest text-indigo-500">Your position</p>
+          <p class="text-7xl font-black tracking-tighter text-zinc-900 tabular-nums">#{{ position() }}</p>
+          <p class="text-sm font-bold text-zinc-600">of {{ totalUsers() }} waiting</p>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="space-y-2">
+          <div class="flex justify-between text-[10px] font-black uppercase tracking-widest text-zinc-400">
+            <span>Progress</span>
+            <span>{{ progressPercent() }}%</span>
+          </div>
+          <div class="h-2 bg-zinc-100 rounded-full overflow-hidden">
+            <div class="h-full bg-indigo-600 rounded-full transition-all duration-700"
+                 [style.width.%]="progressPercent()"></div>
+          </div>
+        </div>
+
+        <!-- Warning -->
+        <div class="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 flex items-start gap-3 text-left">
+          <i class="fa-solid fa-circle-info text-amber-600 mt-0.5"></i>
+          <div>
+            <p class="text-sm font-bold text-amber-900">Please don't refresh the page</p>
+            <p class="text-xs text-amber-700 font-medium mt-1">Refreshing may put you back at the end of the queue.</p>
+          </div>
+        </div>
+
+        <p class="text-xs text-zinc-400 font-medium">Status updates every 3 seconds.</p>
+      </div>
+    }
+
+  </div>
+</div>

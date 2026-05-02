@@ -1,9 +1,8 @@
-<div class="min-h-screen bg-[#fafafa] flex flex-col animate-in fade-in pt-16">
-
-  <!-- Sticky top bar with steps -->
-  <div class="bg-white border-b border-zinc-200 px-6 py-4 flex items-center justify-between sticky top-16 z-30">
+<!-- Sticky top bar with steps -->
+<div class="bg-white border-b border-zinc-200 px-6 py-4 flex items-center justify-between fixed top-16 left-0 right-0 z-30">
     <div class="flex items-center gap-4">
-      <a routerLink="/admin/events" class="p-2 hover:bg-zinc-100 rounded-full transition-all">
+      <a class="p-2 hover:bg-zinc-100 rounded-full transition-all"
+      (click)="onBack()">
         <i class="fa-solid fa-chevron-left text-zinc-700"></i>
       </a>
       <h1 class="text-lg font-black tracking-tight text-zinc-900">
@@ -27,8 +26,9 @@
       }
       {{ step() === 3 ? (isEditMode() ? 'Save Changes' : 'Publish') : 'Continue' }}
     </button>
-  </div>
+</div>
 
+<div class="min-h-screen bg-[#fafafa] flex flex-col animate-in fade-in pt-32">
   <!-- Step content -->
   <div class="flex-1 max-w-5xl mx-auto w-full p-6 md:p-12">
 
@@ -206,7 +206,7 @@
             <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-400">Status</label>
             <div class="flex bg-zinc-100 p-1.5 rounded-2xl">
               @for (status of ['DRAFT', 'PUBLISHED', 'CANCELLED']; track status) {
-                <button type="button" (click)="form.patchValue({ status: status })"
+                <button type="button" (click)="form.patchValue({ status: $any(status) })"
                         class="flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all"
                         [class]="f['status'].value === status ? 'bg-white shadow-md text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'">
                   {{ status }}
@@ -262,8 +262,61 @@
     @if (step() === 3) {
       <div class="space-y-8 animate-in slide-in-from-right-8 max-w-3xl mx-auto">
         <div class="text-center">
-          <h2 class="text-4xl font-black mb-2 tracking-tighter">Seat Zones</h2>
-          <p class="text-zinc-500 font-medium">Configure ticket zones, capacity and pricing.</p>
+          <h2 class="text-4xl font-black mb-2 tracking-tighter">Stand & Zones</h2>
+          <p class="text-zinc-500 font-medium">Set the overall stand size, then configure ticket zones inside it.</p>
+        </div>
+
+        <!-- Stand size -->
+        <div class="bg-white border border-zinc-200 rounded-[32px] p-6 space-y-4 shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Stand Size</span>
+            <span class="text-xs font-bold text-zinc-500">{{ standRows() }} × {{ standCols() }} grid</span>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-400">Stand Rows</label>
+              <input type="number" min="1" max="100" [value]="standRows()"
+                     (input)="setStandRows(+$any($event.target).value)"
+                     class="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+            </div>
+            <div class="space-y-2">
+              <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-400">Stand Cols</label>
+              <input type="number" min="1" max="100" [value]="standCols()"
+                     (input)="setStandCols(+$any($event.target).value)"
+                     class="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+            </div>
+          </div>
+
+          <!-- Stand visual preview -->
+          <div class="bg-zinc-900 rounded-2xl p-4">
+            <p class="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3 text-center">Stand Preview · Stage</p>
+            <div class="bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase tracking-widest text-center py-2 rounded-lg mb-3">
+              Stage
+            </div>
+            <div class="relative w-full bg-zinc-950 rounded-lg overflow-hidden"
+                 [style.aspect-ratio]="standLayout().standCols + ' / ' + (standLayout().standRows || 1)">
+              @for (placed of standLayout().zones; track placed.index) {
+                <div class="absolute flex items-center justify-center text-[10px] font-bold text-white border border-black/30 rounded-sm overflow-hidden"
+                     [style.left.%]="(placed.startCol / standLayout().standCols) * 100"
+                     [style.top.%]="(placed.startRow / (standLayout().standRows || 1)) * 100"
+                     [style.width.%]="(placed.cols / standLayout().standCols) * 100"
+                     [style.height.%]="(placed.rows / (standLayout().standRows || 1)) * 100"
+                     [style.background-color]="placed.zone.color">
+                  <span class="truncate px-1">{{ placed.zone.name || 'Zone ' + (placed.index + 1) }}</span>
+                </div>
+              }
+            </div>
+            @if (standLayout().overflow) {
+              <p class="text-[10px] font-bold text-amber-400 text-center mt-3">
+                ⚠ Some zones are wider than the stand. Increase stand cols or shrink the zone.
+              </p>
+            }
+            @if (standLayout().standRows > standRows()) {
+              <p class="text-[10px] font-bold text-amber-400 text-center mt-3">
+                ⚠ Zones don't fit vertically. Stand needs at least {{ standLayout().standRows }} rows.
+              </p>
+            }
+          </div>
         </div>
 
         <!-- Zone rows -->

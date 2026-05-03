@@ -11,7 +11,18 @@ import { EventService } from '../../../events/event.service';
 import { EventListItem, EventStatus } from '../../../../core/models/event.model';
 import { AdminEventService, CreateEventPayload } from '../admin-event.service';
 import { ToastService } from '../../../../core/services/toast.service';
-import { computeStandLayout } from '../../../../shared/utils/stand-layout';
+import {
+  CellTool,
+  CellValue,
+  PaintGrid,
+  computeZoneStats,
+  isZoneCell,
+  loadStandFromStorage,
+  makeEmptyGrid,
+  resizeGrid,
+  saveStandToStorage,
+  setCell,
+} from '../../../../shared/utils/stand-paint';
 
 interface ThemeOption {
   value: string;
@@ -22,12 +33,13 @@ interface ThemeOption {
 }
 
 interface ZoneDraft {
+  key: string;
   name: string;
-  rows: number;
-  cols: number;
   price: number;
   color: string;
 }
+
+type ToolKey = 'EMPTY' | 'STAGE' | 'BLOCKED' | string; // string = zone key
 
 @Component({
   selector: 'app-event-form',
@@ -42,14 +54,24 @@ export class EventFormComponent implements OnInit, OnDestroy {
   readonly selectedTheme = signal('minimal');
   readonly selectedTicketType = signal<'FREE' | 'PAID'>('PAID');
   readonly selectedSeatingType = signal<'ASSIGNED' | 'GENERAL_ADMISSION'>('ASSIGNED');
-  readonly zones = signal<ZoneDraft[]>([
-    { name: '', rows: 10, cols: 10, price: 0, color: '#6366f1' },
-  ]);
-  readonly standRows = signal(20);
-  readonly standCols = signal(30);
 
-  readonly standLayout = computed(() =>
-    computeStandLayout(this.zones(), this.standCols(), this.standRows()),
+  readonly standRows = signal(12);
+  readonly standCols = signal(20);
+  readonly grid = signal<PaintGrid>(makeEmptyGrid(12, 20));
+
+  readonly zones = signal<ZoneDraft[]>([
+    { key: this.makeKey(), name: 'VIP', price: 500000, color: '#6366f1' },
+    { key: this.makeKey(), name: 'Standard', price: 200000, color: '#10b981' },
+  ]);
+
+  readonly currentTool = signal<ToolKey>(this.zones()[0].key);
+  readonly isPainting = signal(false);
+
+  readonly zoneStats = computed(() =>
+    computeZoneStats(
+      this.grid(),
+      this.zones().map(z => z.key),
+    ),
   );
 
   private readonly eventService = inject(EventService);
@@ -101,6 +123,10 @@ export class EventFormComponent implements OnInit, OnDestroy {
     }
   }
 
+  private makeKey(): string {
+    return 'z_' + Math.random().toString(36).slice(2, 9);
+  }
+
   private loadEventForEdit(eventId: string): void {
     const cached = this.eventService.getSelectedEvent();
     if (cached && cached.id === eventId) {
@@ -125,19 +151,59 @@ export class EventFormComponent implements OnInit, OnDestroy {
         if (ev.ticketType) this.selectedTicketType.set(ev.ticketType);
         if (ev.seatingType) this.selectedSeatingType.set(ev.seatingType);
         if (ev.zones?.length) {
-          this.zones.set(
-            ev.zones.map(z => ({
-              name: z.name,
-              rows: z.rows ?? 10,
-              cols: z.cols ?? 10,
-              price: z.price,
-              color: z.color,
-            })),
-          );
+          const drafts = ev.zones.map(z => ({
+            key: this.makeKey(),
+            name: z.name,
+            price: z.price,
+            color: z.color,
+          }));
+          this.zones.set(drafts);
+          this.currentTool.set(drafts[0].key);
+
+          const stored = loadStandFromStorage(eventId);
+          if (stored) {
+            this.standRows.set(stored.length);
+            this.standCols.set(stored[0]?.length ?? 0);
+            this.grid.set(stored);
+          } else {
+            // Fallback: paint each zone as a rectangle from its rows×cols.
+            this.seedGridFromRectangles(ev.zones, drafts);
+          }
         }
       },
       error: () => this.toast.error('Failed to load event.'),
     });
+  }
+
+  private seedGridFromRectangles(
+    apiZones: { rows: number | null; cols: number | null }[],
+    drafts: ZoneDraft[],
+  ): void {
+    const totalRows = Math.max(
+      8,
+      apiZones.reduce((m, z) => Math.max(m, z.rows ?? 0), 0) + 2,
+    );
+    const totalCols = Math.max(
+      12,
+      apiZones.reduce((sum, z) => sum + (z.cols ?? 0), 0),
+    );
+    this.standRows.set(totalRows);
+    this.standCols.set(totalCols);
+    let g = makeEmptyGrid(totalRows, totalCols);
+
+    let cursorCol = 0;
+    apiZones.forEach((z, i) => {
+      const r = z.rows ?? 0;
+      const c = z.cols ?? 0;
+      const draft = drafts[i];
+      for (let dr = 0; dr < r; dr++) {
+        for (let dc = 0; dc < c; dc++) {
+          g = setCell(g, dr + 1, cursorCol + dc, { kind: 'ZONE', zoneKey: draft.key });
+        }
+      }
+      cursorCol += c;
+    });
+    this.grid.set(g);
   }
 
   private patchFromListItem(event: EventListItem): void {
@@ -178,9 +244,11 @@ export class EventFormComponent implements OnInit, OnDestroy {
       );
     }
     if (step === 3) {
-      return this.zones().every(
-        z => z.name.trim() !== '' && z.rows > 0 && z.cols > 0 && z.price >= 0,
-      );
+      const drafts = this.zones();
+      if (drafts.some(z => z.name.trim() === '' || z.price < 0)) return false;
+      const stats = this.zoneStats();
+      // Every zone tool must have at least one painted cell.
+      return drafts.every(d => (stats.get(d.key)?.cellCount ?? 0) > 0);
     }
     return true;
   }
@@ -221,39 +289,123 @@ export class EventFormComponent implements OnInit, OnDestroy {
     this.selectedSeatingType.set(value);
   }
 
-  addZone(): void {
-    this.zones.update(z => [
-      ...z,
-      {
-        name: '',
-        rows: 10,
-        cols: 10,
-        price: this.selectedTicketType() === 'FREE' ? 0 : 0,
-        color: '#10b981',
-      },
-    ]);
-  }
-
+  // ─── Stand size ──────────────────────────────────────────────
   setStandRows(value: number): void {
-    this.standRows.set(Math.max(1, Math.min(100, value || 1)));
+    const next = Math.max(1, Math.min(40, value || 1));
+    this.standRows.set(next);
+    this.grid.update(g => resizeGrid(g, next, this.standCols()));
   }
 
   setStandCols(value: number): void {
-    this.standCols.set(Math.max(1, Math.min(100, value || 1)));
+    const next = Math.max(1, Math.min(40, value || 1));
+    this.standCols.set(next);
+    this.grid.update(g => resizeGrid(g, this.standRows(), next));
   }
 
-  removeZone(index: number): void {
-    this.zones.update(z => z.filter((_, i) => i !== index));
+  // ─── Zone tools ──────────────────────────────────────────────
+  addZone(): void {
+    const palette = ['#f59e0b', '#ec4899', '#06b6d4', '#84cc16', '#a855f7'];
+    const next: ZoneDraft = {
+      key: this.makeKey(),
+      name: '',
+      price: this.selectedTicketType() === 'FREE' ? 0 : 0,
+      color: palette[this.zones().length % palette.length],
+    };
+    this.zones.update(z => [...z, next]);
+    this.currentTool.set(next.key);
   }
 
-  updateZone(index: number, field: keyof ZoneDraft, value: string | number): void {
+  removeZone(key: string): void {
+    if (this.zones().length <= 1) return;
+    // Erase any painted cells belonging to this zone.
+    this.grid.update(g =>
+      g.map(row =>
+        row.map<CellValue>(cell => (isZoneCell(cell, key) ? 'EMPTY' : cell)),
+      ),
+    );
+    this.zones.update(z => z.filter(zone => zone.key !== key));
+    if (this.currentTool() === key) {
+      this.currentTool.set(this.zones()[0].key);
+    }
+  }
+
+  updateZone(key: string, field: 'name' | 'price' | 'color', value: string | number): void {
     this.zones.update(z =>
-      z.map((zone, i) => (i === index ? { ...zone, [field]: value } : zone)),
+      z.map(zone => (zone.key === key ? { ...zone, [field]: value } : zone)),
     );
   }
 
+  selectTool(tool: ToolKey): void {
+    this.currentTool.set(tool);
+  }
+
+  // ─── Painting interaction ────────────────────────────────────
+  onCellDown(row: number, col: number): void {
+    this.isPainting.set(true);
+    this.paintCell(row, col);
+  }
+
+  onCellEnter(row: number, col: number): void {
+    if (this.isPainting()) this.paintCell(row, col);
+  }
+
+  onCellUp(): void {
+    this.isPainting.set(false);
+  }
+
+  private paintCell(row: number, col: number): void {
+    const tool = this.currentTool();
+    const value = this.toolToCell(tool);
+    this.grid.update(g => setCell(g, row, col, value));
+  }
+
+  private toolToCell(tool: ToolKey): CellValue {
+    if (tool === 'EMPTY' || tool === 'STAGE' || tool === 'BLOCKED') return tool as CellTool;
+    return { kind: 'ZONE', zoneKey: tool };
+  }
+
+  // Template helpers
+  cellColor(cell: CellValue): string {
+    if (cell === 'EMPTY') return '#fafafa';
+    if (cell === 'STAGE') return '#18181b';
+    if (cell === 'BLOCKED') return '#d4d4d8';
+    const zone = this.zones().find(z => z.key === cell.zoneKey);
+    return zone?.color ?? '#9ca3af';
+  }
+
+  cellGlyph(cell: CellValue): 'stage' | 'seat' | 'blocked' | '' {
+    if (cell === 'STAGE') return 'stage';
+    if (cell === 'BLOCKED') return 'blocked';
+    if (cell === 'EMPTY') return '';
+    return 'seat';
+  }
+
+  isToolActive(tool: ToolKey): boolean {
+    return this.currentTool() === tool;
+  }
+
+  zoneCellCount(key: string): number {
+    return this.zoneStats().get(key)?.cellCount ?? 0;
+  }
+
+  // ─── Save ────────────────────────────────────────────────────
   private buildPayload(): CreateEventPayload {
     const v = this.form.getRawValue();
+    const stats = this.zoneStats();
+
+    const zonesPayload = this.zones().map(z => {
+      const stat = stats.get(z.key);
+      const rows = stat?.bboxRows || 1;
+      const cols = stat?.bboxCols || 1;
+      return {
+        name: z.name,
+        rows,
+        cols,
+        price: z.price,
+        color: z.color,
+      };
+    });
+
     return {
       title: v.title,
       slug: v.slug,
@@ -267,7 +419,7 @@ export class EventFormComponent implements OnInit, OnDestroy {
       theme: v.theme,
       status: v.status,
       categories: [],
-      zones: this.zones(),
+      zones: zonesPayload,
       seating_type: this.selectedSeatingType(),
       ticket_type: this.selectedTicketType(),
     };
@@ -275,7 +427,7 @@ export class EventFormComponent implements OnInit, OnDestroy {
 
   private save(): void {
     if (!this.isStepValid(3)) {
-      this.toast.error('Each zone needs a name, rows, cols and price.');
+      this.toast.error('Each zone needs a name and at least one painted cell.');
       return;
     }
     this.saving.set(true);
@@ -287,8 +439,19 @@ export class EventFormComponent implements OnInit, OnDestroy {
       : this.adminEventService.createEvent(payload);
 
     request$.subscribe({
-      next: () => {
+      next: created => {
         this.saving.set(false);
+        // Persist painted layout against the resulting event id (or slug fallback)
+        // so the customer-facing seat map can render the same overview.
+        const key = this.editingEventId ?? created?.id ?? payload.slug ?? '';
+        if (key) {
+          saveStandToStorage(key, this.grid());
+          // Also store a slug-keyed copy when creating, in case the id arrives
+          // back as a different identifier on first read.
+          if (!this.editingEventId && payload.slug) {
+            saveStandToStorage(payload.slug, this.grid());
+          }
+        }
         this.toast.success(this.editingEventId ? 'Event updated.' : 'Event created.');
         this.router.navigate(['/admin/events']);
       },

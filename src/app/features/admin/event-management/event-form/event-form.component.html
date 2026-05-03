@@ -258,128 +258,132 @@
       </div>
     }
 
-    <!-- ── Step 3: Seat Zones ── -->
+    <!-- ── Step 3: Stand Designer ── -->
     @if (step() === 3) {
-      <div class="space-y-8 animate-in slide-in-from-right-8 max-w-3xl mx-auto">
+      <div class="space-y-8 animate-in slide-in-from-right-8 w-full max-w-6xl mx-auto"
+           (mouseup)="onCellUp()" (mouseleave)="onCellUp()">
         <div class="text-center">
-          <h2 class="text-4xl font-black mb-2 tracking-tighter">Stand & Zones</h2>
-          <p class="text-zinc-500 font-medium">Set the overall stand size, then configure ticket zones inside it.</p>
+          <h2 class="text-4xl font-black mb-2 tracking-tighter">Stand Designer</h2>
+          <p class="text-zinc-500 font-medium">Drag-paint each zone, the stage, and aisles directly onto the stand.</p>
         </div>
 
         <!-- Stand size -->
-        <div class="bg-white border border-zinc-200 rounded-[32px] p-6 space-y-4 shadow-sm">
-          <div class="flex items-center justify-between">
-            <span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Stand Size</span>
-            <span class="text-xs font-bold text-zinc-500">{{ standRows() }} × {{ standCols() }} grid</span>
+        <div class="bg-white border border-zinc-200 rounded-3xl p-5 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+          <div class="space-y-2">
+            <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-400">Stand Rows</label>
+            <input type="number" min="1" max="40" [value]="standRows()"
+                   (input)="setStandRows(+$any($event.target).value)"
+                   class="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
           </div>
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-400">Stand Rows</label>
-              <input type="number" min="1" max="100" [value]="standRows()"
-                     (input)="setStandRows(+$any($event.target).value)"
-                     class="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-            </div>
-            <div class="space-y-2">
-              <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-400">Stand Cols</label>
-              <input type="number" min="1" max="100" [value]="standCols()"
-                     (input)="setStandCols(+$any($event.target).value)"
-                     class="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-            </div>
+          <div class="space-y-2">
+            <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-400">Stand Cols</label>
+            <input type="number" min="1" max="40" [value]="standCols()"
+                   (input)="setStandCols(+$any($event.target).value)"
+                   class="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
           </div>
-
-          <!-- Stand visual preview -->
-          <div class="bg-zinc-900 rounded-2xl p-4">
-            <p class="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3 text-center">Stand Preview · Stage</p>
-            <div class="bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase tracking-widest text-center py-2 rounded-lg mb-3">
-              Stage
-            </div>
-            <div class="relative w-full bg-zinc-950 rounded-lg overflow-hidden"
-                 [style.aspect-ratio]="standLayout().standCols + ' / ' + (standLayout().standRows || 1)">
-              @for (placed of standLayout().zones; track placed.index) {
-                <div class="absolute flex items-center justify-center text-[10px] font-bold text-white border border-black/30 rounded-sm overflow-hidden"
-                     [style.left.%]="(placed.startCol / standLayout().standCols) * 100"
-                     [style.top.%]="(placed.startRow / (standLayout().standRows || 1)) * 100"
-                     [style.width.%]="(placed.cols / standLayout().standCols) * 100"
-                     [style.height.%]="(placed.rows / (standLayout().standRows || 1)) * 100"
-                     [style.background-color]="placed.zone.color">
-                  <span class="truncate px-1">{{ placed.zone.name || 'Zone ' + (placed.index + 1) }}</span>
-                </div>
-              }
-            </div>
-            @if (standLayout().overflow) {
-              <p class="text-[10px] font-bold text-amber-400 text-center mt-3">
-                ⚠ Some zones are wider than the stand. Increase stand cols or shrink the zone.
-              </p>
-            }
-            @if (standLayout().standRows > standRows()) {
-              <p class="text-[10px] font-bold text-amber-400 text-center mt-3">
-                ⚠ Zones don't fit vertically. Stand needs at least {{ standLayout().standRows }} rows.
-              </p>
-            }
+          <div class="text-xs font-bold text-zinc-500">
+            Total grid · {{ standRows() }} × {{ standCols() }}
           </div>
         </div>
 
-        <!-- Zone rows -->
+        <!-- Tool palette -->
+        <div class="flex flex-wrap items-center gap-3 bg-white p-4 rounded-2xl border border-zinc-200 shadow-sm">
+          <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400 mr-2 flex items-center gap-2">
+            <i class="fa-solid fa-paintbrush"></i> Tool
+          </div>
+
+          @for (zone of zones(); track zone.key) {
+            <button type="button" (click)="selectTool(zone.key)"
+                    class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border-2"
+                    [class]="isToolActive(zone.key) ? 'border-zinc-900 bg-zinc-50' : 'border-transparent hover:bg-zinc-100'">
+              <span class="w-4 h-4 rounded border border-black/10" [style.background-color]="zone.color"></span>
+              {{ zone.name || 'Zone ' + ($index + 1) }}
+              <span class="text-[10px] font-black text-zinc-400">{{ zoneCellCount(zone.key) }}</span>
+            </button>
+          }
+
+          <button type="button" (click)="selectTool('STAGE')"
+                  class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border-2"
+                  [class]="isToolActive('STAGE') ? 'border-zinc-900 bg-zinc-50' : 'border-transparent hover:bg-zinc-100'">
+            <span class="w-4 h-4 rounded bg-zinc-900"></span> Stage
+          </button>
+          <button type="button" (click)="selectTool('BLOCKED')"
+                  class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border-2"
+                  [class]="isToolActive('BLOCKED') ? 'border-zinc-900 bg-zinc-50' : 'border-transparent hover:bg-zinc-100'">
+            <span class="w-4 h-4 rounded bg-zinc-300 border border-zinc-400"></span> Aisle / Blocked
+          </button>
+          <button type="button" (click)="selectTool('EMPTY')"
+                  class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border-2"
+                  [class]="isToolActive('EMPTY') ? 'border-zinc-900 bg-zinc-50' : 'border-transparent hover:bg-zinc-100'">
+            <span class="w-4 h-4 rounded bg-white border border-dashed border-zinc-400"></span> Eraser
+          </button>
+        </div>
+
+        <!-- Paint canvas -->
+        <div class="bg-zinc-100/50 border border-zinc-200 rounded-3xl p-6 overflow-auto flex justify-center items-center min-h-[420px]">
+          <div class="grid gap-1 p-5 bg-white rounded-2xl shadow-xl border border-zinc-100 select-none"
+               [style.grid-template-columns]="'repeat(' + standCols() + ', minmax(0, 1fr))'">
+            @for (row of grid(); track $index; let r = $index) {
+              @for (cell of row; track $index; let c = $index) {
+                <div class="w-7 h-7 rounded-md border flex items-center justify-center cursor-crosshair transition-colors"
+                     [style.background-color]="cellColor(cell)"
+                     [class.border-dashed]="cell === 'EMPTY'"
+                     [class.border-zinc-200]="cell === 'EMPTY'"
+                     [class.border-black]="cell !== 'EMPTY'"
+                     [class.border-opacity-10]="cell !== 'EMPTY'"
+                     (mousedown)="onCellDown(r, c); $event.preventDefault()"
+                     (mouseenter)="onCellEnter(r, c)"
+                     [title]="'Row ' + (r + 1) + ' · Col ' + (c + 1)">
+                  @if (cellGlyph(cell) === 'stage') {
+                    <i class="fa-solid fa-display text-white/60 text-[10px]"></i>
+                  } @else if (cellGlyph(cell) === 'seat') {
+                    <i class="fa-solid fa-chair text-white/80 text-[10px]"></i>
+                  }
+                </div>
+              }
+            }
+          </div>
+        </div>
+        <p class="text-center text-zinc-500 text-xs font-medium">
+          Tip: click and drag to paint many cells at once. Each painted cell becomes a seat.
+        </p>
+
+        <!-- Zone metadata editor -->
         <div class="space-y-4">
-          @for (zone of zones(); track $index; let i = $index) {
-            <div class="bg-white border border-zinc-200 rounded-[32px] p-6 space-y-4 shadow-sm">
-              <div class="flex items-center justify-between">
-                <span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Zone {{ i + 1 }}</span>
+          @for (zone of zones(); track zone.key; let i = $index) {
+            <div class="bg-white border border-zinc-200 rounded-3xl p-5 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+              <div class="md:col-span-4 space-y-2">
+                <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-400">Zone {{ i + 1 }} · Name</label>
+                <input type="text" [value]="zone.name"
+                       (input)="updateZone(zone.key, 'name', $any($event.target).value)"
+                       placeholder="VIP, Standard…"
+                       class="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+              </div>
+              <div class="md:col-span-3 space-y-2">
+                <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-400">Price (₫)</label>
+                <input type="number" min="0" [value]="zone.price"
+                       (input)="updateZone(zone.key, 'price', +$any($event.target).value)"
+                       placeholder="150000"
+                       class="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+              </div>
+              <div class="md:col-span-3 space-y-2">
+                <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-400">Color</label>
+                <div class="flex items-center gap-3 px-4 py-2.5 bg-zinc-50 border border-zinc-100 rounded-xl">
+                  <input type="color" [value]="zone.color"
+                         (input)="updateZone(zone.key, 'color', $any($event.target).value)"
+                         class="w-8 h-8 rounded-lg border-0 cursor-pointer bg-transparent" />
+                  <span class="font-bold text-xs text-zinc-700">{{ zone.color }}</span>
+                </div>
+              </div>
+              <div class="md:col-span-2 flex flex-col items-end gap-2">
+                <span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Seats</span>
+                <span class="text-2xl font-black tabular-nums" [style.color]="zone.color">{{ zoneCellCount(zone.key) }}</span>
                 @if (zones().length > 1) {
-                  <button type="button" (click)="removeZone(i)"
-                          class="text-xs font-bold text-red-500 hover:text-red-700 transition-colors">
+                  <button type="button" (click)="removeZone(zone.key)"
+                          class="text-[11px] font-bold text-red-500 hover:text-red-700">
                     <i class="fa-regular fa-trash-can"></i> Remove
                   </button>
                 }
-              </div>
-
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="col-span-2 space-y-2">
-                  <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-400">Zone Name</label>
-                  <input type="text" [value]="zone.name" (input)="updateZone(i, 'name', $any($event.target).value)"
-                         placeholder="VIP, Standard…"
-                         class="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-                </div>
-                <div class="space-y-2">
-                  <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-400">Rows</label>
-                  <input type="number" min="1" max="50" [value]="zone.rows"
-                         (input)="updateZone(i, 'rows', +$any($event.target).value)"
-                         class="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-                </div>
-                <div class="space-y-2">
-                  <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-400">Cols</label>
-                  <input type="number" min="1" max="50" [value]="zone.cols"
-                         (input)="updateZone(i, 'cols', +$any($event.target).value)"
-                         class="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-                </div>
-              </div>
-
-              <div class="grid grid-cols-2 gap-4">
-                <div class="space-y-2">
-                  <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-400">Price (₫)</label>
-                  <input type="number" min="0" [value]="zone.price"
-                         (input)="updateZone(i, 'price', +$any($event.target).value)"
-                         placeholder="150000"
-                         class="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-                </div>
-                <div class="space-y-2">
-                  <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-400">Color</label>
-                  <div class="flex items-center gap-3 px-4 py-3 bg-zinc-50 border border-zinc-100 rounded-xl">
-                    <input type="color" [value]="zone.color"
-                           (input)="updateZone(i, 'color', $any($event.target).value)"
-                           class="w-8 h-8 rounded-lg border-0 cursor-pointer bg-transparent" />
-                    <span class="font-bold text-sm text-zinc-700">{{ zone.color }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Seat count preview -->
-              <div class="bg-indigo-50 rounded-2xl px-4 py-3 flex items-center gap-2">
-                <i class="fa-solid fa-chair text-indigo-500 text-sm"></i>
-                <p class="text-xs font-bold text-indigo-800">
-                  This zone will have <strong>{{ zone.rows * zone.cols }}</strong> seats
-                  ({{ zone.rows }} rows × {{ zone.cols }} cols)
-                </p>
               </div>
             </div>
           }
@@ -387,7 +391,7 @@
 
         <!-- Add zone button -->
         <button type="button" (click)="addZone()"
-                class="w-full py-4 border-2 border-dashed border-zinc-300 rounded-[32px] flex items-center justify-center gap-2 text-sm font-bold text-zinc-500 hover:border-indigo-400 hover:text-indigo-600 transition-all">
+                class="w-full py-4 border-2 border-dashed border-zinc-300 rounded-3xl flex items-center justify-center gap-2 text-sm font-bold text-zinc-500 hover:border-indigo-400 hover:text-indigo-600 transition-all">
           <i class="fa-solid fa-plus"></i>
           Add Zone
         </button>

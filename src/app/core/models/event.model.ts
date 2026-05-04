@@ -56,4 +56,6 @@ export interface EventListItem {
   embedding: string;
   is_private: boolean;
   theme: string;
+  cosine_distance?: number;
+  similarity_score?: number;
 }

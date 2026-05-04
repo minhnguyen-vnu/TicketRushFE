@@ -130,6 +130,7 @@ export class EventFormComponent implements OnInit, OnDestroy {
   private loadEventForEdit(eventId: string): void {
     const cached = this.eventService.getSelectedEvent();
     if (cached && cached.id === eventId) {
+      console.log(cached);
       this.patchFromListItem(cached);
     }
     this.adminEventService.getEvent(eventId).subscribe({
@@ -166,7 +167,6 @@ export class EventFormComponent implements OnInit, OnDestroy {
             this.standCols.set(stored[0]?.length ?? 0);
             this.grid.set(stored);
           } else {
-            // Fallback: paint each zone as a rectangle from its rows×cols.
             this.seedGridFromRectangles(ev.zones, drafts);
           }
         }
@@ -206,21 +206,35 @@ export class EventFormComponent implements OnInit, OnDestroy {
     this.grid.set(g);
   }
 
-  private patchFromListItem(event: EventListItem): void {
+  private patchFromListItem(event: any): void {
+    const startTime = event.startTime ?? event.start_time;
+    const endTime = event.endTime ?? event.end_time;
+    const bannerUrl = event.bannerUrl ?? event.banner_url ?? '';
+    const shortDescription = event.shortDescription ?? event.short_description ?? '';
+    const isPrivate = event.isPrivate ?? event.is_private ?? false;
+    const ticketType = event.ticketType ?? event.ticket_type;
+    const seatingType = event.seatingType ?? event.seating_type;
+
     this.form.patchValue({
-      title: event.title,
-      slug: event.slug,
-      startTime: this.toDatetimeLocal(event.start_time),
-      endTime: this.toDatetimeLocal(event.end_time),
-      venue: event.venue,
-      bannerUrl: event.banner_url,
-      shortDescription: event.short_description,
-      description: event.description,
-      isPrivate: event.is_private,
+      title: event.title ?? '',
+      slug: event.slug ?? '',
+      startTime: this.toDatetimeLocal(startTime),
+      endTime: this.toDatetimeLocal(endTime),
+      venue: event.venue ?? '',
+      bannerUrl,
+      shortDescription,
+      description: event.description ?? '',
+      isPrivate,
       status: event.status,
-      theme: event.theme,
+      theme: event.theme ?? 'minimal',
     });
     this.selectedTheme.set(event.theme || 'minimal');
+    if (ticketType === 'FREE' || ticketType === 'PAID') {
+      this.selectedTicketType.set(ticketType);
+    }
+    if (seatingType === 'ASSIGNED' || seatingType === 'GENERAL_ADMISSION') {
+      this.selectedSeatingType.set(seatingType);
+    }
   }
 
   private toDatetimeLocal(iso: string): string {
@@ -388,7 +402,6 @@ export class EventFormComponent implements OnInit, OnDestroy {
     return this.zoneStats().get(key)?.cellCount ?? 0;
   }
 
-  // ─── Save ────────────────────────────────────────────────────
   private buildPayload(): CreateEventPayload {
     const v = this.form.getRawValue();
     const stats = this.zoneStats();

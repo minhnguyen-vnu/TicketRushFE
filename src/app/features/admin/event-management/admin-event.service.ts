@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
-import { EventListItem, Event } from '../../../core/models/event.model';
+import { EventListItem, Event, EventCategory } from '../../../core/models/event.model';
 import { SeatZone } from '../../../core/models/seat-zone.model';
 
 export interface CreateZonePayload {
@@ -10,6 +10,7 @@ export interface CreateZonePayload {
   cols: number;
   price: number;
   color: string;
+  capacity?: number;
 }
 
 export interface CreateEventPayload {
@@ -24,7 +25,8 @@ export interface CreateEventPayload {
   is_private: boolean;
   theme: string;
   status: string;
-  categories: string[];
+  categories: EventCategory[];
+  category_ids?: string[];
   zones: CreateZonePayload[];
   seating_type: 'ASSIGNED' | 'GENERAL_ADMISSION';
   ticket_type: 'FREE' | 'PAID';
@@ -39,7 +41,7 @@ export class AdminEventService {
   }
 
   getEvent(eventId: string): Observable<Event> {
-    return this.api.get<Event>(`/api/admin/events/${eventId}`);
+    return this.api.get<Event>(`/api/events/${eventId}`);
   }
 
   createEvent(payload: CreateEventPayload): Observable<Event> {

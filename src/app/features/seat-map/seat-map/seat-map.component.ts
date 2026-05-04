@@ -274,8 +274,13 @@ export class SeatMapComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: data => {
-          this.zones.set(data.zones);
+          const normalised = data.zones.map(z => ({
+            ...z,
+            seats: z.seats.map(s => this.normaliseSeat(s)),
+          }));
+          this.zones.set(normalised);
           this.loadPaintedLayout();
+          this.restoreOwnHolds(normalised);
           this.loading.set(false);
         },
         error: () => {
@@ -283,6 +288,33 @@ export class SeatMapComponent implements OnInit {
           this.loading.set(false);
         },
       });
+  }
+
+  /**
+   * Backend may report a seat as LOCKED while its `lockedUntil` is already
+   * in the past (Redis hold expired before the DB row was reconciled).
+   * Treat such seats as AVAILABLE on the client.
+   */
+  private normaliseSeat(seat: Seat): Seat {
+    if (seat.status !== 'LOCKED') return seat;
+    const until = seat.lockedUntil ? new Date(seat.lockedUntil).getTime() : NaN;
+    if (!Number.isFinite(until) || until <= Date.now()) {
+      return { ...seat, status: 'AVAILABLE', lockedBy: undefined, lockedUntil: undefined };
+    }
+    return seat;
+  }
+
+  private restoreOwnHolds(zones: SeatMapZone[]): void {
+    const userId = this.currentUserId();
+    if (!userId) return;
+    this.seatService.clearSelected();
+    for (const zone of zones) {
+      for (const seat of zone.seats) {
+        if (seat.status === 'LOCKED' && seat.lockedBy === userId) {
+          this.seatService.addSelected(seat);
+        }
+      }
+    }
   }
 
   private connectWS(): void {

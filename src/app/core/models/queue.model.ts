@@ -4,5 +4,5 @@ export interface QueueStatus {
   total_users: number;
   is_in_queue: boolean;
   has_access: boolean;
-  access_expires_in: number;
+  access_expires_in: number | null;
 }

@@ -10,6 +10,7 @@ export class WebSocketService {
   private currentUrl = '';
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
   private intentionalClose = false;
 
   private readonly seatUpdatesSubject = new Subject<SeatStatusEvent>();
@@ -29,6 +30,7 @@ export class WebSocketService {
   disconnect(): void {
     this.intentionalClose = true;
     this.clearReconnect();
+    this.clearKeepalive();
     this.reconnectAttempts = 0;
     this.currentUrl = '';
     this.ws?.close();
@@ -39,7 +41,13 @@ export class WebSocketService {
     this.intentionalClose = false;
     this.currentUrl = url;
     this.ws?.close();
+    this.clearKeepalive();
     this.ws = new WebSocket(url);
+
+    this.ws.onopen = () => {
+      this.reconnectAttempts = 0;
+      this.startKeepalive();
+    };
 
     this.ws.onmessage = ({ data }) => {
       try {
@@ -53,10 +61,26 @@ export class WebSocketService {
     };
 
     this.ws.onclose = () => {
+      this.clearKeepalive();
       if (!this.intentionalClose) this.scheduleReconnect();
     };
 
     this.ws.onerror = () => { this.ws?.close(); };
+  }
+
+  private startKeepalive(): void {
+    this.keepaliveTimer = setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        try { this.ws.send('ping'); } catch { /* ignore */ }
+      }
+    }, 25_000);
+  }
+
+  private clearKeepalive(): void {
+    if (this.keepaliveTimer !== null) {
+      clearInterval(this.keepaliveTimer);
+      this.keepaliveTimer = null;
+    }
   }
 
   private scheduleReconnect(): void {

@@ -15,9 +15,11 @@
     <!-- Hero banner -->
     <div class="relative h-[50vh] w-full overflow-hidden bg-zinc-100">
       <img
-        [src]="event()!.bannerUrl || ('https://picsum.photos/seed/' + event()!.id + '/1400/700')"
+        [src]="(event()!.bannerUrl | imgThumb:1600:85) || ('https://picsum.photos/seed/' + event()!.id + '/1400/700')"
         [alt]="event()!.title"
         class="w-full h-full object-cover"
+        decoding="async"
+        fetchpriority="high"
       />
       <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-[#fafafa]"></div>
 
@@ -87,9 +89,11 @@
             <!-- Mini banner inside card -->
             <div class="h-24 relative overflow-hidden bg-zinc-100">
               <img
-                [src]="event()!.bannerUrl || ('https://picsum.photos/seed/' + event()!.id + '/700/200')"
+                [src]="(event()!.bannerUrl | imgThumb:600) || ('https://picsum.photos/seed/' + event()!.id + '/700/200')"
                 [alt]="event()!.title"
                 class="w-full h-full object-cover"
+                loading="lazy"
+                decoding="async"
               />
               <div class="absolute inset-0 bg-gradient-to-t from-white to-transparent"></div>
             </div>

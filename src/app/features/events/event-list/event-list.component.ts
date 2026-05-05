@@ -7,11 +7,12 @@ import { catchError, debounceTime, distinctUntilChanged, startWith, switchMap } 
 import { EventListItem } from '../../../core/models/event.model';
 import { ErrorBannerComponent } from '../../../shared/components/error-banner/error-banner.component';
 import { CurrencyVndPipe } from '../../../shared/pipes/currency-vnd.pipe';
+import { ImgThumbPipe } from '../../../shared/pipes/img-thumb.pipe';
 import { EventService } from '../event.service';
 
 @Component({
   selector: 'app-event-list',
-  imports: [ReactiveFormsModule, RouterLink, ErrorBannerComponent, CurrencyVndPipe],
+  imports: [ReactiveFormsModule, RouterLink, ErrorBannerComponent, CurrencyVndPipe, ImgThumbPipe],
   templateUrl: './event-list.component.html',
 })
 export class EventListComponent {

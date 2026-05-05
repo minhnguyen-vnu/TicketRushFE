@@ -276,7 +276,7 @@ export class SeatMapComponent implements OnInit {
         next: data => {
           const normalised = data.zones.map(z => ({
             ...z,
-            seats: z.seats.map(s => this.normaliseSeat(s)),
+            seats: z.seats.map(s => this.normaliseSeat({ ...s, zoneId: z.id })),
           }));
           this.zones.set(normalised);
           this.loadPaintedLayout();

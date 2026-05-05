@@ -4,6 +4,7 @@ import { TicketDetailResponse } from '../../core/models/ticket.model';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { QrCodeDisplayComponent } from '../../shared/components/qr-code-display/qr-code-display.component';
 import { CurrencyVndPipe } from '../../shared/pipes/currency-vnd.pipe';
+import { ImgThumbPipe } from '../../shared/pipes/img-thumb.pipe';
 import { TicketService } from './ticket.service';
 
 interface EventGroup {
@@ -17,7 +18,7 @@ interface EventGroup {
 
 @Component({
   selector: 'app-my-tickets',
-  imports: [RouterLink, LoadingSpinnerComponent, QrCodeDisplayComponent, CurrencyVndPipe],
+  imports: [RouterLink, LoadingSpinnerComponent, QrCodeDisplayComponent, CurrencyVndPipe, ImgThumbPipe],
   template: `
     <div class="min-h-screen bg-[#fafafa] pt-24 pb-12 px-6">
       <div class="max-w-4xl mx-auto space-y-12">
@@ -58,9 +59,11 @@ interface EventGroup {
                       <!-- Event banner -->
                       <div class="h-32 relative">
                         <img
-                          [src]="group.bannerUrl || ('https://picsum.photos/seed/' + group.eventId + '/700/280')"
+                          [src]="(group.bannerUrl | imgThumb:700) || ('https://picsum.photos/seed/' + group.eventId + '/700/280')"
                           [alt]="group.eventTitle"
                           class="w-full h-full object-cover"
+                          loading="lazy"
+                          decoding="async"
                         />
                         <div class="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
                         <div class="absolute inset-0 p-6 flex items-end">

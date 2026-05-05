@@ -61,6 +61,12 @@ export class SeatService {
     this.selectedSeatsSubject.next([]);
   }
 
+  resetEventContext(): void {
+    this.selectedSeatsSubject.next([]);
+    this.cachedZones = [];
+    this.cachedEventId = '';
+  }
+
   getSelectedSeats(): Seat[] {
     return this.selectedSeatsSubject.getValue();
   }

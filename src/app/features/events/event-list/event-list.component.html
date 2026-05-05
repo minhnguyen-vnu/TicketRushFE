@@ -76,10 +76,11 @@
             <!-- Card image -->
             <div class="relative aspect-[4/5] rounded-[32px] overflow-hidden mb-5 bg-zinc-100 shadow-sm border border-zinc-100">
               <img
-                [src]="event.banner_url || ('https://picsum.photos/seed/' + event.id + '/800/1000')"
+                [src]="(event.banner_url | imgThumb:600) || ('https://picsum.photos/seed/' + event.id + '/800/1000')"
                 [alt]="event.title"
                 class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 loading="lazy"
+                decoding="async"
               />
               @if (event.categories.length) {
                 <div class="absolute bottom-4 left-4">

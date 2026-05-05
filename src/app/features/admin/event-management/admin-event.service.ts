@@ -1,8 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
 import { ApiService } from '../../../core/services/api.service';
 import { EventListItem, Event, EventCategory } from '../../../core/models/event.model';
 import { SeatZone } from '../../../core/models/seat-zone.model';
+import { EventService } from '../../events/event.service';
 
 export interface CreateZonePayload {
   name: string;
@@ -35,6 +37,7 @@ export interface CreateEventPayload {
 @Injectable({ providedIn: 'root' })
 export class AdminEventService {
   private readonly api = inject(ApiService);
+  private readonly eventService = inject(EventService);
 
   getEvents(): Observable<EventListItem[]> {
     return this.api.get<EventListItem[]>(`/api/admin/events`);
@@ -45,15 +48,21 @@ export class AdminEventService {
   }
 
   createEvent(payload: CreateEventPayload): Observable<Event> {
-    return this.api.post<Event>(`/api/admin/events`, payload);
+    return this.api.post<Event>(`/api/admin/events`, payload).pipe(
+      tap(() => this.eventService.invalidateListCache()),
+    );
   }
 
   updateEvent(eventId: string, data: Partial<CreateEventPayload>): Observable<Event> {
-    return this.api.put<Event>(`/api/admin/events/${eventId}`, data);
+    return this.api.put<Event>(`/api/admin/events/${eventId}`, data).pipe(
+      tap(() => this.eventService.invalidateListCache()),
+    );
   }
 
   deleteEvent(eventId: string): Observable<{ deleted: boolean }> {
-    return this.api.delete<{ deleted: boolean }>(`/api/admin/events/${eventId}`);
+    return this.api.delete<{ deleted: boolean }>(`/api/admin/events/${eventId}`).pipe(
+      tap(() => this.eventService.invalidateListCache()),
+    );
   }
 
   getZones(eventId: string): Observable<SeatZone[]> {

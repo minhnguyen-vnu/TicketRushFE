@@ -5,13 +5,14 @@ import { map } from 'rxjs/operators';
 import { Event } from '../../../core/models/event.model';
 import { ErrorBannerComponent } from '../../../shared/components/error-banner/error-banner.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
+import { ImgThumbPipe } from '../../../shared/pipes/img-thumb.pipe';
 import { SeatMapComponent } from '../../seat-map/seat-map/seat-map.component';
 import { SeatService } from '../../seat-map/seat.service';
 import { EventService } from '../event.service';
 
 @Component({
   selector: 'app-event-detail',
-  imports: [SeatMapComponent, RouterLink, LoadingSpinnerComponent, ErrorBannerComponent],
+  imports: [SeatMapComponent, RouterLink, LoadingSpinnerComponent, ErrorBannerComponent, ImgThumbPipe],
   templateUrl: './event-detail.component.html',
 })
 export class EventDetailComponent implements OnInit {
@@ -32,6 +33,10 @@ export class EventDetailComponent implements OnInit {
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id')!;
+    const cachedEventId = this.seatService.getCachedEventId();
+    if (cachedEventId && cachedEventId !== id) {
+      this.seatService.resetEventContext();
+    }
     this.eventService
       .getEventById(id)
       .pipe(takeUntilDestroyed(this.destroyRef))

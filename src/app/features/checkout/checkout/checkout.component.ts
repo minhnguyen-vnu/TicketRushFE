@@ -9,6 +9,7 @@ import { HoldTimerComponent } from '../../seat-map/hold-timer/hold-timer.compone
 import { SeatService } from '../../seat-map/seat.service';
 import { CheckoutService } from '../checkout.service';
 import { CurrencyVndPipe } from '../../../shared/pipes/currency-vnd.pipe';
+import { ImgThumbPipe } from '../../../shared/pipes/img-thumb.pipe';
 
 interface ZoneRow {
   zone: SeatMapZone;
@@ -17,7 +18,7 @@ interface ZoneRow {
 
 @Component({
   selector: 'app-checkout',
-  imports: [RouterLink, HoldTimerComponent, CurrencyVndPipe],
+  imports: [RouterLink, HoldTimerComponent, CurrencyVndPipe, ImgThumbPipe],
   template: `
     <div class="min-h-screen bg-[#fafafa] pt-24 pb-12 px-6">
       <div class="max-w-4xl mx-auto flex flex-col md:flex-row gap-8">
@@ -25,12 +26,12 @@ interface ZoneRow {
         <!-- ── Left column ── -->
         <div class="flex-1 space-y-8 animate-in slide-in-from-left-8">
 
-          <a routerLink="/" class="flex items-center gap-2 text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">
+          <button (click)="onCancel()" class="flex items-center gap-2 text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
             Cancel order
-          </a>
+          </button>
 
           @if (seats().length === 0) {
             <div class="py-20 text-center space-y-4">
@@ -140,9 +141,11 @@ interface ZoneRow {
             <!-- Event banner -->
             <div class="h-40 relative">
               @if (event()) {
-                <img [src]="event()!.bannerUrl || ('https://picsum.photos/seed/' + event()!.id + '/700/320')"
+                <img [src]="(event()!.bannerUrl | imgThumb:700) || ('https://picsum.photos/seed/' + event()!.id + '/700/320')"
                      [alt]="event()!.title"
-                     class="w-full h-full object-cover" />
+                     class="w-full h-full object-cover"
+                     loading="lazy"
+                     decoding="async" />
               } @else {
                 <div class="w-full h-full bg-zinc-100"></div>
               }
@@ -240,6 +243,15 @@ export class CheckoutComponent implements OnInit {
       day: 'numeric', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
     });
+  }
+
+  protected onCancel(): void {
+    const eventId = this.seatService.getCachedEventId();
+    if (eventId) {
+      this.router.navigate(['/events', eventId]);
+    } else {
+      this.router.navigate(['/']);
+    }
   }
 
   protected onHoldExpired(): void {

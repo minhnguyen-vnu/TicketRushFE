@@ -6,11 +6,12 @@ import { EventListItem, EventStatus } from '../../../../core/models/event.model'
 import { of } from 'rxjs';
 import { catchError } from 'rxjs/internal/operators/catchError';
 import { EventService } from '../../../events/event.service';
+import { ImgThumbPipe } from '../../../../shared/pipes/img-thumb.pipe';
 
 @Component({
   selector: 'app-admin-event-list',
   templateUrl: './admin-event-list.component.html',
-  imports: [RouterLink],
+  imports: [RouterLink, ImgThumbPipe],
 })
 export class AdminEventListComponent implements OnInit {
   private readonly adminEventService = inject(AdminEventService);

@@ -13,6 +13,8 @@
            class="hover:text-zinc-900 transition-colors">Explore</a>
 
         @if (auth.isLoggedIn() && !auth.isAdmin()) {
+          <a routerLink="/recommendations" routerLinkActive="text-zinc-900"
+             class="hover:text-zinc-900 transition-colors">Recommendation</a>
           <a routerLink="/my-tickets" routerLinkActive="text-zinc-900"
              class="hover:text-zinc-900 transition-colors">My Tickets</a>
         }
@@ -62,6 +64,7 @@
       <a routerLink="/" (click)="menuOpen.set(false)" class="hover:text-zinc-900">Home</a>
 
       @if (auth.isLoggedIn() && !auth.isAdmin()) {
+        <a routerLink="/recommendations" (click)="menuOpen.set(false)" class="hover:text-zinc-900">Recommendation</a>
         <a routerLink="/my-tickets" (click)="menuOpen.set(false)" class="hover:text-zinc-900">My Tickets</a>
       }
 

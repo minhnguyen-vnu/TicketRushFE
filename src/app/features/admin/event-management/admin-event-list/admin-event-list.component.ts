@@ -64,14 +64,40 @@ export class AdminEventListComponent implements OnInit {
     this.events.update(events =>
       events.map(e => (e.id === event.id ? { ...e, status: newStatus } : e)),
     );
-    this.adminEventService.updateEvent(event.id, { status: newStatus }).subscribe({
-      next: () =>
-        this.toast.success(
-          newStatus === EventStatus.PUBLISHED ? 'Event published.' : 'Event unpublished.',
-        ),
+    this.adminEventService.getEvent(event.id).subscribe({
+      next: full => {
+        this.adminEventService
+          .updateEvent(event.id, {
+            title: full.title,
+            slug: full.slug,
+            description: full.description,
+            short_description: full.shortDescription ?? '',
+            start_time: full.startTime,
+            end_time: full.endTime,
+            venue: full.venue,
+            banner_url: full.bannerUrl ?? '',
+            is_private: full.isPrivate ?? false,
+            theme: full.theme ?? 'minimal',
+            status: newStatus,
+            categories: full.categories ?? [],
+            zones: [],
+            seating_type: full.seatingType,
+            ticket_type: full.ticketType,
+          })
+          .subscribe({
+            next: () =>
+              this.toast.success(
+                newStatus === EventStatus.PUBLISHED ? 'Event published.' : 'Event unpublished.',
+              ),
+            error: () => {
+              this.loadEvents();
+              this.toast.error('Failed to update event.');
+            },
+          });
+      },
       error: () => {
         this.loadEvents();
-        this.toast.error('Failed to update event.');
+        this.toast.error('Failed to load event for publish.');
       },
     });
   }

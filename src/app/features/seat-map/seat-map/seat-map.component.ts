@@ -1,5 +1,7 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router } from '@angular/router';
 import { Seat } from '../../../core/models/seat.model';
 import { SeatMapZone } from '../../../core/models/seat-map.model';
 import { AuthService } from '../../../core/services/auth.service';
@@ -83,6 +85,7 @@ export class SeatMapComponent implements OnInit {
   private readonly wsService = inject(WebSocketService);
   private readonly authService = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly eventId = input.required<string>();
@@ -356,9 +359,15 @@ export class SeatMapComponent implements OnInit {
         this.seatService.addSelected(confirmed);
         this.updateLocalSeat(confirmed);
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
         this.updateLocalSeat(seat);
-        this.toast.error('Could not hold this seat. Please try again.');
+        const message = err.error?.error ?? '';
+        if (err.status === 409 && message.toLowerCase().includes('queue')) {
+          this.toast.show('Please join the queue room first. Opening it now…', 'info');
+          void this.router.navigate(['/queue'], { queryParams: { eventId: this.eventId() } });
+          return;
+        }
+        this.toast.error(message || 'Could not hold this seat. Please try again.');
       },
     });
   }

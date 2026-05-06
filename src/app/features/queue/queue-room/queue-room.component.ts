@@ -1,24 +1,34 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { toSignal, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
+import { map } from 'rxjs/operators';
 import { Subscription } from 'rxjs';
 import { QueueStatus } from '../../../core/models/queue.model';
+import { SeatService } from '../../seat-map/seat.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { SeatMapComponent } from '../../seat-map/seat-map/seat-map.component';
 import { QueueService } from '../queue.service';
 
 @Component({
   selector: 'app-queue-room',
+  imports: [SeatMapComponent],
   templateUrl: './queue-room.component.html',
 })
 export class QueueRoomComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly queueService = inject(QueueService);
+  private readonly seatService = inject(SeatService);
   private readonly toast = inject(ToastService);
 
   readonly loading = signal(true);
   readonly status = signal<QueueStatus | null>(null);
   readonly error = signal('');
   readonly accessCountdown = signal(0);
+  readonly selectedCount = toSignal(
+    this.seatService.selectedSeats$.pipe(map(seats => seats.length)),
+    { initialValue: 0 },
+  );
 
   readonly position = computed(() => this.status()?.position ?? 0);
   readonly totalUsers = computed(() => this.status()?.total_users ?? 0);
@@ -30,7 +40,7 @@ export class QueueRoomComponent implements OnInit, OnDestroy {
     return Math.min(100, Math.max(0, Math.round((ahead / total) * 100)));
   });
 
-  private eventId = '';
+  protected eventId = '';
   private pollSub: Subscription | null = null;
   private countdownTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -40,6 +50,11 @@ export class QueueRoomComponent implements OnInit, OnDestroy {
       this.error.set('Missing event id.');
       this.loading.set(false);
       return;
+    }
+
+    const cachedEventId = this.seatService.getCachedEventId();
+    if (cachedEventId && cachedEventId !== this.eventId) {
+      this.seatService.resetEventContext();
     }
 
     this.queueService.joinQueue(this.eventId).subscribe({
@@ -71,9 +86,12 @@ export class QueueRoomComponent implements OnInit, OnDestroy {
       if (result.access_expires_in != null) {
         this.startCountdown(result.access_expires_in);
       }
-      this.toast.success('Access granted! Redirecting…');
-      setTimeout(() => this.router.navigate(['/events', this.eventId]), 1200);
+      this.toast.success('Access granted!');
     }
+  }
+
+  protected onCheckout(): void {
+    void this.router.navigate(['/checkout']);
   }
 
   private startCountdown(seconds: number): void {

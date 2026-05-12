@@ -116,7 +116,7 @@ interface ZonePaintMeta {
               [disabled]="joiningRoom()"
               class="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-zinc-900 opacity-0 shadow-lg transition-all duration-200 ease-out group-hover:opacity-100 hover:-translate-y-[52%] hover:scale-[1.03] hover:bg-zinc-100 hover:shadow-xl active:scale-[0.98] disabled:cursor-wait disabled:opacity-70 cursor-pointer"
             >
-              {{ joiningRoom() ? 'Đang kiểm tra...' : 'Bắt đầu đặt ghế' }}
+              {{ joiningRoom() ? 'Checking...' : 'Start Selecting Seats' }}
             </button>
           }
         </div>
@@ -504,7 +504,7 @@ export class SeatMapComponent implements OnInit {
         const message = err.error?.error ?? '';
         if (err.status === 409 && message.toLowerCase().includes('queue')) {
           this.roomAccess.set(false);
-          this.toast.show('Bạn cần bắt đầu đặt ghế trước.', 'info');
+          this.toast.show('You need to start selecting seats first.', 'info');
           return;
         }
         this.toast.error(message || 'Could not hold this seat. Please try again.');

@@ -228,7 +228,7 @@ export class CheckoutComponent implements OnInit {
     if (map.size === 0 && this.isGeneralAdmission()) {
       const zone = Array.from(this.zoneMap().values())[0];
       if (zone) {
-        map.set(zone.id, { zone, seats: [], quantity: this.gaQuantity() });
+        map.set(zone.id, { zone, seats: [], quantity: this.checkoutQuantity() });
       }
     }
     return Array.from(map.values());
@@ -240,8 +240,9 @@ export class CheckoutComponent implements OnInit {
 
   protected readonly isFreeEvent = computed(() => this.event()?.ticketType === 'FREE');
   protected readonly isGeneralAdmission = computed(() => this.event()?.seatingType === 'GENERAL_ADMISSION');
+  protected readonly checkoutQuantity = computed(() => (this.isFreeEvent() ? 1 : this.gaQuantity()));
   protected readonly hasCheckoutPayload = computed(() =>
-    this.isGeneralAdmission() ? this.gaQuantity() > 0 : this.seats().length > 0,
+    this.isGeneralAdmission() ? this.checkoutQuantity() > 0 : this.seats().length > 0,
   );
 
   ngOnInit(): void {
@@ -264,6 +265,9 @@ export class CheckoutComponent implements OnInit {
         .subscribe({
           next: e => {
             this.event.set(e);
+            if (e.ticketType === 'FREE') {
+              this.gaQuantity.set(1);
+            }
             if (e.zones?.length) {
               const enriched = new Map<string, SeatMapZone>(this.zoneMap());
               e.zones.forEach(zone => enriched.set(zone.id, { ...zone, seats: [] }));
@@ -303,6 +307,10 @@ export class CheckoutComponent implements OnInit {
     const eventId = this.seatService.getCachedEventId() || this.route.snapshot.queryParamMap.get('eventId') || '';
     if (!eventId) return;
     if (!this.hasCheckoutPayload()) return;
+    if (this.isFreeEvent() && !this.isGeneralAdmission() && seats.length !== 1) {
+      this.error.set('Free events allow exactly 1 ticket per checkout.');
+      return;
+    }
 
     this.loading.set(true);
     this.error.set('');
@@ -311,7 +319,7 @@ export class CheckoutComponent implements OnInit {
       .checkout(
         eventId,
         seats.map(s => s.id),
-        this.isGeneralAdmission() ? this.gaQuantity() : seats.length,
+        this.isGeneralAdmission() ? this.checkoutQuantity() : seats.length,
       )
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({

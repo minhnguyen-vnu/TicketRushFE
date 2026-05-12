@@ -27,8 +27,9 @@ export class EventDetailComponent implements OnInit {
   readonly error = signal('');
   readonly gaQuantity = signal(1);
   readonly isGeneralAdmission = computed(() => this.event()?.seatingType === 'GENERAL_ADMISSION');
+  readonly isFreeEvent = computed(() => this.event()?.ticketType === 'FREE');
   readonly ctaLabel = computed(() =>
-    this.event()?.ticketType === 'FREE' ? 'Register now' : 'Continue to checkout',
+    this.event()?.ticketType === 'FREE' ? 'Proceed to checkout' : 'Continue to checkout',
   );
 
   ngOnInit(): void {
@@ -64,10 +65,12 @@ export class EventDetailComponent implements OnInit {
   }
 
   protected decreaseQuantity(): void {
+    if (this.isFreeEvent()) return;
     this.gaQuantity.update(value => Math.max(1, value - 1));
   }
 
   protected increaseQuantity(): void {
+    if (this.isFreeEvent()) return;
     const maxCapacity = this.event()?.maxCapacity ?? null;
     this.gaQuantity.update(value => {
       const next = value + 1;
@@ -81,7 +84,7 @@ export class EventDetailComponent implements OnInit {
     void this.router.navigate(['/checkout'], {
       queryParams: {
         eventId: event.id,
-        quantity: this.gaQuantity(),
+        quantity: this.isFreeEvent() ? 1 : this.gaQuantity(),
       },
     });
   }

@@ -1,6 +1,7 @@
-import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Event } from '../../../core/models/event.model';
 import { ErrorBannerComponent } from '../../../shared/components/error-banner/error-banner.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
@@ -16,6 +17,7 @@ import { EventService } from '../event.service';
 })
 export class EventDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly eventService = inject(EventService);
   private readonly seatService = inject(SeatService);
   private readonly destroyRef = inject(DestroyRef);
@@ -23,6 +25,11 @@ export class EventDetailComponent implements OnInit {
   readonly event = signal<Event | null>(null);
   readonly loading = signal(true);
   readonly error = signal('');
+  readonly gaQuantity = signal(1);
+  readonly isGeneralAdmission = computed(() => this.event()?.seatingType === 'GENERAL_ADMISSION');
+  readonly ctaLabel = computed(() =>
+    this.event()?.ticketType === 'FREE' ? 'Register now' : 'Continue to checkout',
+  );
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id')!;
@@ -38,8 +45,8 @@ export class EventDetailComponent implements OnInit {
           this.event.set(evt);
           this.loading.set(false);
         },
-        error: () => {
-          this.error.set('Event not found or unavailable.');
+        error: (err: HttpErrorResponse) => {
+          this.error.set(err.error?.error ?? 'Event not found or unavailable.');
           this.loading.set(false);
         },
       });
@@ -53,6 +60,29 @@ export class EventDetailComponent implements OnInit {
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+    });
+  }
+
+  protected decreaseQuantity(): void {
+    this.gaQuantity.update(value => Math.max(1, value - 1));
+  }
+
+  protected increaseQuantity(): void {
+    const maxCapacity = this.event()?.maxCapacity ?? null;
+    this.gaQuantity.update(value => {
+      const next = value + 1;
+      return maxCapacity ? Math.min(maxCapacity, next) : next;
+    });
+  }
+
+  protected goToGeneralAdmissionCheckout(): void {
+    const event = this.event();
+    if (!event) return;
+    void this.router.navigate(['/checkout'], {
+      queryParams: {
+        eventId: event.id,
+        quantity: this.gaQuantity(),
+      },
     });
   }
 }

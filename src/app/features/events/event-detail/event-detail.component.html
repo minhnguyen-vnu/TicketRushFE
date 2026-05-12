@@ -79,20 +79,43 @@
               <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
                 <div>
                   <h2 class="text-2xl font-black tracking-tighter text-zinc-900">Select Your Seats</h2>
-                  <p class="text-sm font-medium text-zinc-500 mt-1">If the event is busy, open the queue room first.</p>
+                  <p class="text-sm font-medium text-zinc-500 mt-1">Hover the seat map and start booking when a room slot is available.</p>
                 </div>
-                <a
-                  [routerLink]="['/queue']"
-                  [queryParams]="{ eventId: event()!.id }"
-                  class="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-zinc-900 text-white text-sm font-black shadow-lg shadow-zinc-200 hover:bg-zinc-800 transition-all"
-                >
-                  Join queue room
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                  </svg>
-                </a>
               </div>
               <app-seat-map [eventId]="event()!.id" />
+            </div>
+          } @else {
+            <div class="rounded-[32px] border border-zinc-200 bg-white p-8 shadow-sm space-y-6">
+              <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p class="text-[10px] font-black uppercase tracking-widest text-indigo-500">General admission</p>
+                  <h2 class="text-3xl font-black tracking-tighter text-zinc-900">Fast registration flow</h2>
+                  <p class="text-sm font-medium text-zinc-500 mt-1">
+                    No seat picking. Choose quantity, then go straight to checkout.
+                  </p>
+                </div>
+                <div class="inline-flex items-center rounded-2xl border border-zinc-200 bg-zinc-50 p-1.5">
+                  <button type="button" (click)="decreaseQuantity()"
+                          class="w-11 h-11 rounded-xl bg-white text-zinc-900 font-black hover:bg-zinc-100 transition-colors">-</button>
+                  <div class="min-w-20 text-center">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Quantity</div>
+                    <div class="text-2xl font-black text-zinc-900 tabular-nums">{{ gaQuantity() }}</div>
+                  </div>
+                  <button type="button" (click)="increaseQuantity()"
+                          class="w-11 h-11 rounded-xl bg-white text-zinc-900 font-black hover:bg-zinc-100 transition-colors">+</button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                (click)="goToGeneralAdmissionCheckout()"
+                class="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-zinc-900 text-white text-sm font-black shadow-lg shadow-zinc-200 hover:bg-zinc-800 transition-all"
+              >
+                {{ ctaLabel() }}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </button>
             </div>
           }
         </div>

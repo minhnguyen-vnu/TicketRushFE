@@ -1,6 +1,6 @@
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Event as EventModel } from '../../../core/models/event.model';
 import { Seat } from '../../../core/models/seat.model';
 import { SeatMapZone } from '../../../core/models/seat-map.model';
@@ -14,6 +14,7 @@ import { ImgThumbPipe } from '../../../shared/pipes/img-thumb.pipe';
 interface ZoneRow {
   zone: SeatMapZone;
   seats: Seat[];
+  quantity: number;
 }
 
 @Component({
@@ -33,13 +34,19 @@ interface ZoneRow {
             Cancel order
           </button>
 
-          @if (seats().length === 0) {
+          @if (!hasCheckoutPayload()) {
             <div class="py-20 text-center space-y-4">
-              <p class="text-zinc-500 font-bold">No seats selected. Please go back and select seats.</p>
+              <p class="text-zinc-500 font-bold">
+                {{ isGeneralAdmission()
+                  ? 'Missing checkout quantity. Please go back and choose how many tickets you want.'
+                  : 'No seats selected. Please go back and select seats.' }}
+              </p>
               <a routerLink="/" class="inline-block text-sm font-bold text-indigo-600 hover:underline">Browse events →</a>
             </div>
           } @else {
-            <app-hold-timer (expired)="onHoldExpired()" />
+            @if (!isGeneralAdmission()) {
+              <app-hold-timer (expired)="onHoldExpired()" />
+            }
 
             @if (error()) {
               <div class="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 text-sm text-red-600 font-medium">
@@ -60,13 +67,17 @@ interface ZoneRow {
                         <div>
                           <h3 class="font-black text-xl text-zinc-900">{{ row.zone.name }}</h3>
                           <p class="text-xs font-bold text-zinc-400">
-                            {{ row.seats.length }} seat{{ row.seats.length > 1 ? 's' : '' }} ·
-                            @for (s of row.seats; track s.id) { {{ s.label }}{{ !$last ? ', ' : '' }} }
+                            {{ row.quantity }} ticket{{ row.quantity > 1 ? 's' : '' }}
+                            @if (row.seats.length > 0) {
+                              · @for (s of row.seats; track s.id) { {{ s.label }}{{ !$last ? ', ' : '' }} }
+                            } @else {
+                              · General admission
+                            }
                           </p>
                         </div>
                       </div>
                       <div class="text-right">
-                        <p class="text-2xl font-black text-zinc-900">{{ row.zone.price * row.seats.length | currencyVnd }}</p>
+                        <p class="text-2xl font-black text-zinc-900">{{ row.zone.price * row.quantity | currencyVnd }}</p>
                         <p class="text-[10px] font-black uppercase text-zinc-400">{{ row.zone.price | currencyVnd }} / seat</p>
                       </div>
                     </div>
@@ -165,8 +176,8 @@ interface ZoneRow {
               <div class="space-y-3 pt-6 border-t border-zinc-100">
                 @for (row of zoneRows(); track row.zone.id) {
                   <div class="flex justify-between text-sm font-medium">
-                    <span class="text-zinc-400">{{ row.zone.name }} × {{ row.seats.length }}</span>
-                    <span class="text-zinc-900">{{ row.zone.price * row.seats.length | currencyVnd }}</span>
+                    <span class="text-zinc-400">{{ row.zone.name }} × {{ row.quantity }}</span>
+                    <span class="text-zinc-900">{{ row.zone.price * row.quantity | currencyVnd }}</span>
                   </div>
                 }
                 <div class="flex justify-between items-end pt-4 border-t border-zinc-100">
@@ -183,6 +194,7 @@ interface ZoneRow {
   `,
 })
 export class CheckoutComponent implements OnInit {
+  private readonly route = inject(ActivatedRoute);
   private readonly seatService = inject(SeatService);
   private readonly checkoutService = inject(CheckoutService);
   private readonly eventService = inject(EventService);
@@ -194,6 +206,7 @@ export class CheckoutComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal('');
   readonly event = signal<EventModel | null>(null);
+  readonly gaQuantity = signal(1);
 
   private readonly zoneMap = signal<Map<string, SeatMapZone>>(new Map());
 
@@ -207,18 +220,29 @@ export class CheckoutComponent implements OnInit {
       const existing = map.get(seat.zoneId);
       if (existing) {
         existing.seats.push(seat);
+        existing.quantity += 1;
       } else {
-        map.set(seat.zoneId, { zone, seats: [seat] });
+        map.set(seat.zoneId, { zone, seats: [seat], quantity: 1 });
+      }
+    }
+    if (map.size === 0 && this.isGeneralAdmission()) {
+      const zone = Array.from(this.zoneMap().values())[0];
+      if (zone) {
+        map.set(zone.id, { zone, seats: [], quantity: this.gaQuantity() });
       }
     }
     return Array.from(map.values());
   });
 
   protected readonly total = computed(() =>
-    this.zoneRows().reduce((sum, r) => sum + r.zone.price * r.seats.length, 0),
+    this.zoneRows().reduce((sum, r) => sum + r.zone.price * r.quantity, 0),
   );
 
   protected readonly isFreeEvent = computed(() => this.event()?.ticketType === 'FREE');
+  protected readonly isGeneralAdmission = computed(() => this.event()?.seatingType === 'GENERAL_ADMISSION');
+  protected readonly hasCheckoutPayload = computed(() =>
+    this.isGeneralAdmission() ? this.gaQuantity() > 0 : this.seats().length > 0,
+  );
 
   ngOnInit(): void {
     this.seatService.selectedSeats$
@@ -230,11 +254,23 @@ export class CheckoutComponent implements OnInit {
     zones.forEach(z => map.set(z.id, z));
     this.zoneMap.set(map);
 
-    const eventId = this.seatService.getCachedEventId();
+    const queryEventId = this.route.snapshot.queryParamMap.get('eventId') ?? '';
+    const eventId = this.seatService.getCachedEventId() || queryEventId;
+    const queryQuantity = Number(this.route.snapshot.queryParamMap.get('quantity') ?? '1');
+    this.gaQuantity.set(Number.isFinite(queryQuantity) && queryQuantity > 0 ? Math.floor(queryQuantity) : 1);
     if (eventId) {
       this.eventService.getEventById(eventId)
         .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe({ next: e => this.event.set(e) });
+        .subscribe({
+          next: e => {
+            this.event.set(e);
+            if (e.zones?.length) {
+              const enriched = new Map<string, SeatMapZone>(this.zoneMap());
+              e.zones.forEach(zone => enriched.set(zone.id, { ...zone, seats: [] }));
+              this.zoneMap.set(enriched);
+            }
+          },
+        });
     }
   }
 
@@ -247,8 +283,11 @@ export class CheckoutComponent implements OnInit {
 
   protected onCancel(): void {
     const eventId = this.seatService.getCachedEventId();
+    const queryEventId = this.route.snapshot.queryParamMap.get('eventId') ?? '';
     if (eventId) {
       this.router.navigate(['/events', eventId]);
+    } else if (queryEventId) {
+      this.router.navigate(['/events', queryEventId]);
     } else {
       this.router.navigate(['/']);
     }
@@ -261,13 +300,19 @@ export class CheckoutComponent implements OnInit {
 
   protected onConfirm(): void {
     const seats = this.seats();
-    if (!seats.length) return;
+    const eventId = this.seatService.getCachedEventId() || this.route.snapshot.queryParamMap.get('eventId') || '';
+    if (!eventId) return;
+    if (!this.hasCheckoutPayload()) return;
 
     this.loading.set(true);
     this.error.set('');
 
     this.checkoutService
-      .checkout(this.seatService.getCachedEventId(), seats.map(s => s.id))
+      .checkout(
+        eventId,
+        seats.map(s => s.id),
+        this.isGeneralAdmission() ? this.gaQuantity() : seats.length,
+      )
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
@@ -276,7 +321,11 @@ export class CheckoutComponent implements OnInit {
         },
         error: () => {
           this.loading.set(false);
-          this.error.set('Checkout failed. Your holds may have expired. Please try again.');
+          this.error.set(
+            this.isGeneralAdmission()
+              ? 'Checkout failed. Please refresh the event and try again.'
+              : 'Checkout failed. Your holds may have expired. Please try again.',
+          );
         },
       });
   }

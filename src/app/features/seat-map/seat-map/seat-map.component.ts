@@ -1,5 +1,7 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router } from '@angular/router';
 import { Seat } from '../../../core/models/seat.model';
 import { SeatMapZone } from '../../../core/models/seat-map.model';
 import { AuthService } from '../../../core/services/auth.service';
@@ -10,6 +12,8 @@ import { LoadingSpinnerComponent } from '../../../shared/components/loading-spin
 import { HoldTimerComponent } from '../hold-timer/hold-timer.component';
 import { SeatLegendComponent } from '../seat-legend/seat-legend.component';
 import { SeatService } from '../seat.service';
+import { QueueService } from '../../queue/queue.service';
+import { QueueStatus } from '../../../core/models/queue.model';
 import { computeStandLayout } from '../../../shared/utils/stand-layout';
 import { CellValue, PaintGrid, loadStandFromStorage, makeEmptyGrid, setCell } from '../../../shared/utils/stand-paint';
 
@@ -41,7 +45,20 @@ interface ZonePaintMeta {
 
       @let g = panorama();
       @if (g && g.length > 0) {
-        <div class="bg-zinc-900 rounded-2xl p-5 border border-zinc-800 mt-5">
+        <div class="group relative bg-zinc-900 rounded-2xl p-5 border border-zinc-800 mt-5 overflow-hidden">
+          <div
+            class="absolute right-4 top-4 z-20 min-w-10 rounded-xl bg-white px-3 py-2 text-center text-sm font-black text-zinc-900 shadow-lg"
+            title="Active users"
+          >
+            @if (roomAccess()) {
+              <span>You are active</span>
+              @if (sessionCountdown() > 0) {
+                <span class="ml-2 rounded-lg bg-zinc-900 px-2 py-1 text-xs text-white">{{ sessionTimeLabel() }}</span>
+              }
+            } @else {
+              {{ activeUsers() }}
+            }
+          </div>
           <div class="bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase tracking-widest text-center py-2 rounded-lg mb-4">
             Stage
           </div>
@@ -73,6 +90,35 @@ interface ZonePaintMeta {
             <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-red-800"></span> Sold</span>
             <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-zinc-700"></span> Aisle</span>
           </div>
+
+          @if (hasSelection()) {
+            <div class="mt-6 flex flex-col gap-4 border-t border-zinc-800 pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <p class="text-sm font-bold text-zinc-300">
+                <span class="text-white font-black">{{ selectedCount() }} seat{{ selectedCount() > 1 ? 's' : '' }}</span> selected
+              </p>
+              <button
+                type="button"
+                (click)="goToCheckout()"
+                class="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-black text-zinc-900 shadow-lg transition-all hover:bg-zinc-100"
+              >
+                Proceed to Checkout
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                </svg>
+              </button>
+            </div>
+          }
+
+          @if (!roomAccess()) {
+            <button
+              type="button"
+              (click)="startSeatChoosing()"
+              [disabled]="joiningRoom()"
+              class="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-zinc-900 opacity-0 shadow-lg transition-all duration-200 ease-out group-hover:opacity-100 hover:-translate-y-[52%] hover:scale-[1.03] hover:bg-zinc-100 hover:shadow-xl active:scale-[0.98] disabled:cursor-wait disabled:opacity-70 cursor-pointer"
+            >
+              {{ joiningRoom() ? 'Checking...' : 'Start Selecting Seats' }}
+            </button>
+          }
         </div>
       }
     }
@@ -83,7 +129,9 @@ export class SeatMapComponent implements OnInit {
   private readonly wsService = inject(WebSocketService);
   private readonly authService = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly queueService = inject(QueueService);
 
   readonly eventId = input.required<string>();
 
@@ -93,10 +141,23 @@ export class SeatMapComponent implements OnInit {
 
   protected readonly currentUserId = computed(() => this.authService.getCurrentUser()?.id ?? null);
   protected readonly hasSelection = signal(false);
+  protected readonly selectedCount = signal(0);
+  protected readonly roomAccess = signal(false);
+  protected readonly joiningRoom = signal(false);
+  protected readonly activeUsers = signal(0);
+  protected readonly maxActiveUsers = signal(0);
+  protected readonly sessionCountdown = signal(0);
+  protected readonly sessionTimeLabel = computed(() => {
+    const seconds = this.sessionCountdown();
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    return `${minutes}:${rest.toString().padStart(2, '0')}`;
+  });
 
   /** Painted layout from admin localStorage (preferred when present). */
   private readonly storedGrid = signal<PaintGrid | null>(null);
   private storedKeyOrder: string[] = [];
+  private sessionTimer: ReturnType<typeof setInterval> | null = null;
 
   /**
    * Panoramic grid + per-zone bbox metadata. Always computed: prefers the
@@ -152,6 +213,7 @@ export class SeatMapComponent implements OnInit {
   }
 
   protected panoramaDisabled(cell: CellValue, seat: Seat | null): boolean {
+    if (!this.roomAccess()) return true;
     if (typeof cell === 'string') return true;
     if (!seat) return true;
     if (seat.status === 'SOLD') return true;
@@ -182,6 +244,27 @@ export class SeatMapComponent implements OnInit {
     } else if (seat.status === 'AVAILABLE') {
       this.onHoldRequest(seat);
     }
+  }
+
+  protected goToCheckout(): void {
+    void this.router.navigate(['/checkout']);
+  }
+
+  protected startSeatChoosing(): void {
+    this.joiningRoom.set(true);
+    this.queueService.joinQueue(this.eventId()).subscribe({
+      next: status => {
+        this.applyRoomStatus(status);
+        this.joiningRoom.set(false);
+        if (!status.has_access) {
+          this.toast.show(status.notice || 'Phòng đặt ghế đang đầy, vui lòng đợi.', 'info');
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        this.joiningRoom.set(false);
+        this.toast.error(err.error?.error ?? 'Không thể vào phòng đặt ghế.');
+      },
+    });
   }
 
   // ─── Panorama builders ───────────────────────────────────────
@@ -262,10 +345,70 @@ export class SeatMapComponent implements OnInit {
   ngOnInit(): void {
     this.seatService.selectedSeats$
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(seats => this.hasSelection.set(seats.length > 0));
+      .subscribe(seats => {
+        this.hasSelection.set(seats.length > 0);
+        this.selectedCount.set(seats.length);
+      });
 
     this.loadSeatMap();
+    this.loadRoomStatus();
     this.connectWS();
+    this.destroyRef.onDestroy(() => this.stopSessionCountdown());
+  }
+
+  private loadRoomStatus(): void {
+    this.queueService
+      .getQueueStatus(this.eventId())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: status => this.applyRoomStatus(status),
+        error: () => {
+          this.roomAccess.set(false);
+        },
+      });
+  }
+
+  private applyRoomStatus(status: QueueStatus): void {
+    this.activeUsers.set(status.active_users);
+    this.maxActiveUsers.set(status.max_active_users);
+    this.roomAccess.set(status.has_access);
+    if (status.has_access && status.session_expires_in != null) {
+      this.startSessionCountdown(status.session_expires_in);
+    } else {
+      this.stopSessionCountdown();
+    }
+  }
+
+  private startSessionCountdown(seconds: number): void {
+    const safeSeconds = Math.max(0, Math.floor(seconds));
+    this.sessionCountdown.set(safeSeconds);
+    if (this.sessionTimer) clearInterval(this.sessionTimer);
+
+    if (safeSeconds <= 0) {
+      this.reloadOnSessionExpired();
+      return;
+    }
+
+    this.sessionTimer = setInterval(() => {
+      const next = this.sessionCountdown() - 1;
+      this.sessionCountdown.set(Math.max(0, next));
+      if (next <= 0) {
+        this.stopSessionCountdown();
+        this.reloadOnSessionExpired();
+      }
+    }, 1000);
+  }
+
+  private stopSessionCountdown(): void {
+    this.sessionCountdown.set(0);
+    if (this.sessionTimer) {
+      clearInterval(this.sessionTimer);
+      this.sessionTimer = null;
+    }
+  }
+
+  private reloadOnSessionExpired(): void {
+    window.location.reload();
   }
 
   private loadSeatMap(): void {
@@ -356,9 +499,15 @@ export class SeatMapComponent implements OnInit {
         this.seatService.addSelected(confirmed);
         this.updateLocalSeat(confirmed);
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
         this.updateLocalSeat(seat);
-        this.toast.error('Could not hold this seat. Please try again.');
+        const message = err.error?.error ?? '';
+        if (err.status === 409 && message.toLowerCase().includes('queue')) {
+          this.roomAccess.set(false);
+          this.toast.show('You need to start selecting seats first.', 'info');
+          return;
+        }
+        this.toast.error(message || 'Could not hold this seat. Please try again.');
       },
     });
   }

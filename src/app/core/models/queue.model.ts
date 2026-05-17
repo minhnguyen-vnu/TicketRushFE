@@ -1,8 +1,8 @@
 /** snake_case — from backend queue endpoints */
 export interface QueueStatus {
-  position: number;
-  total_users: number;
-  is_in_queue: boolean;
+  active_users: number;
+  max_active_users: number;
   has_access: boolean;
-  access_expires_in: number | null;
+  notice: string | null;
+  session_expires_in: number | null;
 }

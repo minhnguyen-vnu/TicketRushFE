@@ -11,9 +11,9 @@ export class CheckoutService {
   private readonly resultSubject = new BehaviorSubject<CheckoutResponse | null>(null);
   readonly result$ = this.resultSubject.asObservable();
 
-  checkout(eventId: string, seatIds: string[]): Observable<CheckoutResponse> {
+  checkout(eventId: string, seatIds: string[], quantity = 1): Observable<CheckoutResponse> {
     return this.api
-      .post<CheckoutResponse>('/api/checkout', { event_id: eventId, seat_ids: seatIds })
+      .post<CheckoutResponse>('/api/checkout', { event_id: eventId, seat_ids: seatIds, quantity })
       .pipe(tap(res => this.resultSubject.next(res)));
   }
 

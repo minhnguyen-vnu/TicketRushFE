@@ -55,6 +55,7 @@ export const routes: Routes = [
   },
   {
     path: 'queue',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./features/queue/queue-room/queue-room.component').then(m => m.QueueRoomComponent),
   },

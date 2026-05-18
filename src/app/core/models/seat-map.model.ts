@@ -7,5 +7,7 @@ export interface SeatMapZone extends SeatZone {
 
 export interface SeatMapResponse {
   eventId: string;
+  seatMapRows: number | null;
+  seatMapCols: number | null;
   zones: SeatMapZone[];
 }

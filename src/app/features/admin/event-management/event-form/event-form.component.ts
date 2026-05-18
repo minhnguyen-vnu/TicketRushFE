@@ -17,10 +17,8 @@ import {
   PaintGrid,
   computeZoneStats,
   isZoneCell,
-  loadStandFromStorage,
   makeEmptyGrid,
   resizeGrid,
-  saveStandToStorage,
   setCell,
 } from '../../../../shared/utils/stand-paint';
 
@@ -153,7 +151,7 @@ export class EventFormComponent implements OnInit, OnDestroy {
         if (ev.seatingType) this.selectedSeatingType.set(ev.seatingType);
         if (ev.zones?.length) {
           const drafts = ev.zones.map(z => ({
-            key: this.makeKey(),
+            key: z.id,
             name: z.name,
             price: z.price,
             color: z.color,
@@ -161,48 +159,29 @@ export class EventFormComponent implements OnInit, OnDestroy {
           this.zones.set(drafts);
           this.currentTool.set(drafts[0].key);
 
-          const stored = loadStandFromStorage(eventId);
-          if (stored) {
-            this.standRows.set(stored.length);
-            this.standCols.set(stored[0]?.length ?? 0);
-            this.grid.set(stored);
-          } else {
-            this.seedGridFromRectangles(ev.zones, drafts);
-          }
+          this.seedGridFromEvent(ev.seatMapRows, ev.seatMapCols, ev.zones);
         }
       },
       error: () => this.toast.error('Failed to load event.'),
     });
   }
 
-  private seedGridFromRectangles(
-    apiZones: { rows: number | null; cols: number | null }[],
-    drafts: ZoneDraft[],
+  private seedGridFromEvent(
+    rows: number | null,
+    cols: number | null,
+    zones: { id: string; seats?: { rowIndex: number; colIndex: number }[] }[],
   ): void {
-    const totalRows = Math.max(
-      8,
-      apiZones.reduce((m, z) => Math.max(m, z.rows ?? 0), 0) + 2,
-    );
-    const totalCols = Math.max(
-      12,
-      apiZones.reduce((sum, z) => sum + (z.cols ?? 0), 0),
-    );
+    const totalRows = Math.max(1, rows ?? 12);
+    const totalCols = Math.max(1, cols ?? 20);
     this.standRows.set(totalRows);
     this.standCols.set(totalCols);
     let g = makeEmptyGrid(totalRows, totalCols);
 
-    let cursorCol = 0;
-    apiZones.forEach((z, i) => {
-      const r = z.rows ?? 0;
-      const c = z.cols ?? 0;
-      const draft = drafts[i];
-      for (let dr = 0; dr < r; dr++) {
-        for (let dc = 0; dc < c; dc++) {
-          g = setCell(g, dr + 1, cursorCol + dc, { kind: 'ZONE', zoneKey: draft.key });
-        }
+    for (const zone of zones) {
+      for (const seat of zone.seats ?? []) {
+        g = setCell(g, seat.rowIndex, seat.colIndex, { kind: 'ZONE', zoneKey: zone.id });
       }
-      cursorCol += c;
-    });
+    }
     this.grid.set(g);
   }
 
@@ -260,6 +239,9 @@ export class EventFormComponent implements OnInit, OnDestroy {
     if (step === 3) {
       const drafts = this.zones();
       if (drafts.some(z => z.name.trim() === '' || z.price < 0)) return false;
+      if (this.selectedTicketType() === 'PAID' && drafts.some(z => z.price <= 0)) return false;
+      if (this.selectedTicketType() === 'FREE' && drafts.some(z => z.price !== 0)) return false;
+      if (this.selectedSeatingType() === 'GENERAL_ADMISSION') return true;
       const stats = this.zoneStats();
       // Every zone tool must have at least one painted cell.
       return drafts.every(d => (stats.get(d.key)?.cellCount ?? 0) > 0);
@@ -404,18 +386,42 @@ export class EventFormComponent implements OnInit, OnDestroy {
 
   private buildPayload(): CreateEventPayload {
     const v = this.form.getRawValue();
-    const stats = this.zoneStats();
+    const isAssigned = this.selectedSeatingType() === 'ASSIGNED';
+    const seatBuckets = new Map<string, { label: string; row_index: number; col_index: number; display_order: number }[]>();
+
+    if (isAssigned) {
+      for (const zone of this.zones()) {
+        seatBuckets.set(zone.key, []);
+      }
+      for (let r = 0; r < this.grid().length; r++) {
+        for (let c = 0; c < this.grid()[r].length; c++) {
+          const cell = this.grid()[r][c];
+          if (typeof cell === 'string' || cell.kind !== 'ZONE') continue;
+          const zone = this.zones().find(z => z.key === cell.zoneKey);
+          if (!zone) continue;
+          const seats = seatBuckets.get(zone.key) ?? [];
+          const displayOrder = seats.length + 1;
+          const prefix = zone.name.trim().replace(/[^A-Za-z0-9]+/g, '').toUpperCase().slice(0, 8) || 'ZONE';
+          seats.push({
+            label: `${prefix}-${displayOrder}`,
+            row_index: r,
+            col_index: c,
+            display_order: displayOrder,
+          });
+          seatBuckets.set(zone.key, seats);
+        }
+      }
+    }
 
     const zonesPayload = this.zones().map(z => {
-      const stat = stats.get(z.key);
-      const rows = stat?.bboxRows || 1;
-      const cols = stat?.bboxCols || 1;
+      const seats = seatBuckets.get(z.key) ?? [];
       return {
         name: z.name,
-        rows,
-        cols,
+        zone_type: isAssigned ? 'ASSIGNED' as const : 'GENERAL_ADMISSION' as const,
         price: z.price,
         color: z.color,
+        capacity: isAssigned ? seats.length : undefined,
+        seats,
       };
     });
 
@@ -432,6 +438,8 @@ export class EventFormComponent implements OnInit, OnDestroy {
       theme: v.theme,
       status: v.status,
       categories: [],
+      seat_map_rows: isAssigned ? this.standRows() : null,
+      seat_map_cols: isAssigned ? this.standCols() : null,
       zones: zonesPayload,
       seating_type: this.selectedSeatingType(),
       ticket_type: this.selectedTicketType(),
@@ -440,7 +448,11 @@ export class EventFormComponent implements OnInit, OnDestroy {
 
   private save(): void {
     if (!this.isStepValid(3)) {
-      this.toast.error('Each zone needs a name and at least one painted cell.');
+      this.toast.error(
+        this.selectedSeatingType() === 'ASSIGNED'
+          ? 'Each zone needs a name and at least one painted cell.'
+          : 'Each zone needs a name and a valid price.',
+      );
       return;
     }
     this.saving.set(true);
@@ -452,19 +464,8 @@ export class EventFormComponent implements OnInit, OnDestroy {
       : this.adminEventService.createEvent(payload);
 
     request$.subscribe({
-      next: created => {
+      next: () => {
         this.saving.set(false);
-        // Persist painted layout against the resulting event id (or slug fallback)
-        // so the customer-facing seat map can render the same overview.
-        const key = this.editingEventId ?? created?.id ?? payload.slug ?? '';
-        if (key) {
-          saveStandToStorage(key, this.grid());
-          // Also store a slug-keyed copy when creating, in case the id arrives
-          // back as a different identifier on first read.
-          if (!this.editingEventId && payload.slug) {
-            saveStandToStorage(payload.slug, this.grid());
-          }
-        }
         this.toast.success(this.editingEventId ? 'Event updated.' : 'Event created.');
         this.router.navigate(['/admin/events']);
       },

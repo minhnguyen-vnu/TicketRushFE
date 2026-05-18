@@ -32,6 +32,8 @@ export interface Event {
   ticketType: TicketType;
   seatingType: SeatingType;
   maxCapacity: number | null;
+  seatMapRows: number | null;
+  seatMapCols: number | null;
   categories: EventCategory[];
   zones: SeatZone[];
 }
@@ -50,6 +52,8 @@ export interface EventListItem {
   ticket_type: TicketType;
   seating_type: SeatingType;
   max_capacity: number | null;
+  seat_map_rows?: number | null;
+  seat_map_cols?: number | null;
   categories: EventCategory[];
   description: string;
   short_description: string;

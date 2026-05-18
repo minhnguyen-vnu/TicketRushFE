@@ -4,10 +4,9 @@
  * Each cell either belongs to a zone (referenced by zoneKey), is the stage,
  * is blocked (aisle / structural), or is empty.
  *
- * Backend persists zones as rectangles {rows, cols, capacity}, so on save we
- * collapse painted cells to a bounding-box per zone. The full painted layout
- * is cached in localStorage keyed by eventId so the customer view can render
- * the same stand overview the admin designed.
+ * Backend persists each painted zone cell as an explicit seat coordinate.
+ * Empty, blocked, and stage cells are editor-only helpers; only zone cells
+ * become seats in the saved API payload.
  */
 export type CellTool = 'EMPTY' | 'STAGE' | 'BLOCKED';
 export type CellValue = CellTool | { kind: 'ZONE'; zoneKey: string };

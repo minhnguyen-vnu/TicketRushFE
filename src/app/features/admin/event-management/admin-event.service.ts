@@ -8,11 +8,16 @@ import { EventService } from '../../events/event.service';
 
 export interface CreateZonePayload {
   name: string;
-  rows: number;
-  cols: number;
+  zone_type: 'ASSIGNED' | 'GENERAL_ADMISSION';
   price: number;
   color: string;
   capacity?: number;
+  seats: {
+    label: string;
+    row_index: number;
+    col_index: number;
+    display_order: number;
+  }[];
 }
 
 export interface CreateEventPayload {
@@ -29,6 +34,8 @@ export interface CreateEventPayload {
   status: string;
   categories: EventCategory[];
   category_ids?: string[];
+  seat_map_rows?: number | null;
+  seat_map_cols?: number | null;
   zones: CreateZonePayload[];
   seating_type: 'ASSIGNED' | 'GENERAL_ADMISSION';
   ticket_type: 'FREE' | 'PAID';
@@ -44,7 +51,7 @@ export class AdminEventService {
   }
 
   getEvent(eventId: string): Observable<Event> {
-    return this.api.get<Event>(`/api/events/${eventId}`);
+    return this.api.get<Event>(`/api/admin/events/${eventId}`);
   }
 
   createEvent(payload: CreateEventPayload): Observable<Event> {

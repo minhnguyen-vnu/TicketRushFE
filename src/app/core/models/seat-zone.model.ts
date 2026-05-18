@@ -7,8 +7,8 @@ export interface SeatZone {
   eventId: string;
   name: string;
   zoneType?: ZoneType;
-  rows: number | null;
-  cols: number | null;
+  rows?: number | null;
+  cols?: number | null;
   price: number;
   capacity: number;
   color: string;

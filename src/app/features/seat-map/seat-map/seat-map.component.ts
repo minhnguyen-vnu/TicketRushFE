@@ -14,8 +14,7 @@ import { SeatLegendComponent } from '../seat-legend/seat-legend.component';
 import { SeatService } from '../seat.service';
 import { QueueService } from '../../queue/queue.service';
 import { QueueStatus } from '../../../core/models/queue.model';
-import { computeStandLayout } from '../../../shared/utils/stand-layout';
-import { CellValue, PaintGrid, loadStandFromStorage, makeEmptyGrid, setCell } from '../../../shared/utils/stand-paint';
+import { CellValue, PaintGrid, makeEmptyGrid, setCell } from '../../../shared/utils/stand-paint';
 
 interface ZonePaintMeta {
   zoneId: string;
@@ -138,6 +137,8 @@ export class SeatMapComponent implements OnInit {
   readonly zones = signal<SeatMapZone[]>([]);
   readonly loading = signal(true);
   readonly error = signal('');
+  readonly seatMapRows = signal(0);
+  readonly seatMapCols = signal(0);
 
   protected readonly currentUserId = computed(() => this.authService.getCurrentUser()?.id ?? null);
   protected readonly hasSelection = signal(false);
@@ -154,25 +155,16 @@ export class SeatMapComponent implements OnInit {
     return `${minutes}:${rest.toString().padStart(2, '0')}`;
   });
 
-  /** Painted layout from admin localStorage (preferred when present). */
-  private readonly storedGrid = signal<PaintGrid | null>(null);
-  private storedKeyOrder: string[] = [];
   private sessionTimer: ReturnType<typeof setInterval> | null = null;
 
   /**
-   * Panoramic grid + per-zone bbox metadata. Always computed: prefers the
-   * admin's painted layout when found, else synthesises a panorama from
-   * backend zones using auto-layout so every event gets the same UX.
+   * Panoramic grid is built from backend explicit seat coordinates.
+   * Empty cells are aisles/gaps; there is no rectangle fill fallback.
    */
   private readonly panoramaState = computed<{ grid: PaintGrid; meta: Map<string, ZonePaintMeta> }>(
     () => {
       const zs = this.zones();
       if (zs.length === 0) return { grid: [], meta: new Map() };
-
-      const stored = this.storedGrid();
-      if (stored && this.storedKeyOrder.length > 0) {
-        return this.buildFromStored(stored);
-      }
       return this.buildFromZones(zs);
     },
   );
@@ -187,9 +179,7 @@ export class SeatMapComponent implements OnInit {
     if (!meta) return null;
     const zone = this.zones().find(z => z.id === meta.zoneId);
     if (!zone) return null;
-    const relRow = row - meta.minRow;
-    const relCol = col - meta.minCol;
-    return zone.seats.find(s => s.rowIndex === relRow && s.colIndex === relCol) ?? null;
+    return zone.seats.find(s => s.rowIndex === row && s.colIndex === col) ?? null;
   }
 
   protected panoramaBg(cell: CellValue, seat: Seat | null): string {
@@ -268,78 +258,37 @@ export class SeatMapComponent implements OnInit {
   }
 
   // ─── Panorama builders ───────────────────────────────────────
-  private buildFromStored(grid: PaintGrid) {
-    const meta = new Map<string, ZonePaintMeta>();
-    for (let r = 0; r < grid.length; r++) {
-      for (let c = 0; c < grid[r].length; c++) {
-        const cell = grid[r][c];
-        if (typeof cell === 'string' || cell.kind !== 'ZONE') continue;
-        const idx = this.storedKeyOrder.indexOf(cell.zoneKey);
-        const zone = this.zones()[idx];
-        if (!zone) continue;
-        const existing = meta.get(cell.zoneKey);
-        if (!existing) {
-          meta.set(cell.zoneKey, { zoneId: zone.id, zoneKey: cell.zoneKey, minRow: r, minCol: c });
-        } else {
-          if (r < existing.minRow) existing.minRow = r;
-          if (c < existing.minCol) existing.minCol = c;
-        }
-      }
-    }
-    return { grid, meta };
-  }
-
   private buildFromZones(zones: SeatMapZone[]) {
-    // Auto-layout each zone as a rectangle, then paint the entire bbox.
-    const totalCols = zones.reduce((sum, z) => sum + Math.max(1, z.cols ?? 1), 0);
-    const standCols = Math.max(8, Math.min(50, totalCols));
-    const layout = computeStandLayout(
-      zones.map(z => ({ rows: z.rows, cols: z.cols })),
-      standCols,
+    const standRows = Math.max(
+      this.seatMapRows(),
+      ...zones.flatMap(z => z.seats.map(s => s.rowIndex + 1)),
+      1,
     );
-    // +2 rows of decorative empty space so the stage banner has air above the seats.
-    const standRows = layout.standRows;
+    const standCols = Math.max(
+      this.seatMapCols(),
+      ...zones.flatMap(z => z.seats.map(s => s.colIndex + 1)),
+      1,
+    );
     let grid: PaintGrid = makeEmptyGrid(standRows, standCols);
     const meta = new Map<string, ZonePaintMeta>();
 
-    layout.zones.forEach((placed, i) => {
-      const zone = zones[i];
-      const key = zone.id; // Use backend id as zoneKey for synthesised grid.
+    for (const zone of zones) {
+      const key = zone.id;
       meta.set(key, {
         zoneId: zone.id,
         zoneKey: key,
-        minRow: placed.startRow,
-        minCol: placed.startCol,
+        minRow: 0,
+        minCol: 0,
       });
-      for (let dr = 0; dr < placed.rows; dr++) {
-        for (let dc = 0; dc < placed.cols; dc++) {
-          grid = setCell(grid, placed.startRow + dr, placed.startCol + dc, {
+      for (const seat of zone.seats) {
+        grid = setCell(grid, seat.rowIndex, seat.colIndex, {
             kind: 'ZONE',
             zoneKey: key,
-          });
-        }
-      }
-    });
-
-    return { grid, meta };
-  }
-
-  private loadPaintedLayout(): void {
-    const id = this.eventId();
-    const grid = loadStandFromStorage(id);
-    if (!grid) return;
-    const seen = new Set<string>();
-    const order: string[] = [];
-    for (const row of grid) {
-      for (const cell of row) {
-        if (typeof cell !== 'string' && cell.kind === 'ZONE' && !seen.has(cell.zoneKey)) {
-          seen.add(cell.zoneKey);
-          order.push(cell.zoneKey);
-        }
+        });
       }
     }
-    this.storedKeyOrder = order;
-    this.storedGrid.set(grid);
+
+    return { grid, meta };
   }
 
   ngOnInit(): void {
@@ -417,12 +366,13 @@ export class SeatMapComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: data => {
+          this.seatMapRows.set(data.seatMapRows ?? 0);
+          this.seatMapCols.set(data.seatMapCols ?? 0);
           const normalised = data.zones.map(z => ({
             ...z,
             seats: z.seats.map(s => this.normaliseSeat({ ...s, zoneId: z.id })),
           }));
           this.zones.set(normalised);
-          this.loadPaintedLayout();
           this.restoreOwnHolds(normalised);
           this.loading.set(false);
         },

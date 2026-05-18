@@ -5,6 +5,7 @@ export interface Seat {
   zoneId: string;
   rowIndex: number;
   colIndex: number;
+  displayOrder: number;
   label: string;
   status: SeatStatus;
   lockedBy?: string;
